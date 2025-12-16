@@ -798,7 +798,7 @@ function randomSocialEvent(a, b, entries, freeEntries) {
       logPush(entries, `[화해] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 서로 사과하고 화해했다.`, "green");
       return;
   }
-
+  }
   const chem = calcChem(a.mbti, b.mbti);
   const deltaBase =
     chem >= 5 ? randInt(6, 12) :
@@ -1552,6 +1552,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
