@@ -48,6 +48,9 @@ let activeTab = "village";
 let network = null;
 let mayorSelected = false;
 let mayorId = null;
+let networkNodes = null;
+let networkEdges = null;
+let highlightedPersonId = null;
 
 // =====================
 // Special Day System
@@ -228,7 +231,7 @@ function relAdd(a, b, delta, bondedCap = false) {
   relSet(a, b, v);
 }
 
-// 1인1연애: 새 연애/결혼 전에 기존 관계 정리
+
 function breakSpecial(a, b, entries, reasonLabel) {
   if (!a || !b) return false;
 
@@ -246,7 +249,7 @@ function breakSpecial(a, b, entries, reasonLabel) {
   addMoney(a, -costA);
   addMoney(b, -costB);
 
-  logPush(entries, `[${reasonLabel}] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 관계를 정리했다. (-${costA}원/-${costB}원)`, "normal");
+  logPush(entries, `[${reasonLabel}] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 관계를 정리했다. 💔 (-${costA}원/-${costB}원)`, "normal");
   return true;
 }
 
@@ -405,8 +408,6 @@ function normalizeCharacter(c) {
 
   c.maxHp = Math.max(1, safeNum(c.maxHp, 60 + c.str * 20));
   c.maxEp = Math.max(1, safeNum(c.maxEp, 60 + c.mind * 20));
-
-  // ✅ hp/ep를 "0으로 리셋"하지 않게: undefined일 때만 fallback max로
   if (c.hp == null) c.hp = c.maxHp;
   if (c.ep == null) c.ep = c.maxEp;
 
@@ -539,7 +540,7 @@ function maybeAssignJobs(entries) {
     characters.forEach(c => {
       if (!c.job) {
         assignRandomJob(c);
-        logPush(entries, `[직업] ${c.name}${getJosa(c.name,"은/는")} ${c.job}가 되었다.`, "normal");
+        logPush(entries, `[직업] ${c.name}${getJosa(c.name,"은/는")} ${c.job}이/가 되었다.`, "normal");
       }
     });
     return;
@@ -548,7 +549,7 @@ function maybeAssignJobs(entries) {
     characters.forEach(c => {
       if (!c.job && (day - safeNum(c.dayJoined, day)) >= 1) {
         assignRandomJob(c);
-        logPush(entries, `[직업] ${c.name}${getJosa(c.name,"은/는")} ${c.job}가 되었다.`, "normal");
+        logPush(entries, `[직업] ${c.name}${getJosa(c.name,"은/는")} ${c.job}이/가 되었다.`, "normal");
       }
     });
   }
@@ -698,7 +699,7 @@ function tryConfess(a, b, entries) {
     restoreEP(a, a.maxEp);
     restoreEP(b, b.maxEp);
 
-    logPush(entries, `[고백 성공] ${a.name}${getJosa(a.name,"은/는")} ${b.name}에게 고백했고, 연인이 되었다! (EP 풀충전)`, "pink");
+    logPush(entries, `[고백 성공] 💖 ${a.name}${getJosa(a.name,"은/는")} ${b.name}에게 고백했고, 연인이 되었다! (EP 풀충전)`, "pink");
     return true;
   } else {
     relAdd(a, b, -8);
@@ -706,9 +707,9 @@ function tryConfess(a, b, entries) {
     if (Math.random() < 0.45) {
       setSpecial(a, b, "coldwar");
       setSpecial(b, a, "coldwar");
-      logPush(entries, `[냉전] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 어색해졌다...`, "normal");
+      logPush(entries, `[냉전] 🔥 ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 어색해졌다...`, "normal");
     }
-    logPush(entries, `[고백 실패] ${a.name}${getJosa(a.name,"은/는")} ${b.name}에게 차였다...`, "normal");
+    logPush(entries, `[고백 실패] 💔 ${a.name}${getJosa(a.name,"은/는")} ${b.name}에게 차였다...`, "normal");
     return true;
   }
 }
@@ -737,7 +738,7 @@ function tryMarriage(a, b, entries) {
   restoreEP(a, a.maxEp);
   restoreEP(b, b.maxEp);
 
-  logPush(entries, `[결혼] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 결혼했다! (-${costA}원/-${costB}원, EP 풀충전)`, "pink");
+  logPush(entries, `[결혼] 💞 ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 결혼했다! (-${costA}원/-${costB}원, EP 풀충전)`, "pink");
   return true;
 }
 
@@ -776,12 +777,11 @@ function randomSocialEvent(a, b, entries, freeEntries) {
   consumeEP(a, randInt(1, 4));
   consumeEP(b, randInt(1, 4));
 
-  // ✅ sp 먼저 선언 (너 코드가 여기서 터졌음)
   const sp = getSpecialBetween(a, b);
   const sA = relGet(a, b);
   const sB = relGet(b, a);
 
-  // 극저확률로 이혼/헤어짐 이벤트
+ 
   if ((sp === "lover" || sp === "married") && Math.random() < 0.00001) {
     if (sp === "married") divorce(a, b, entries);
     else breakUp(a, b, entries);
@@ -796,47 +796,7 @@ function randomSocialEvent(a, b, entries, freeEntries) {
       setSpecial(b, a, null);
       relAdd(a, b, 15);
       relAdd(b, a, 15);
-      logPush(entries, `[화해] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 서로 사과하고 화해했다.`, "normal");
-    } else {
-      relAdd(a, b, 2);
-      relAdd(b, a, 2);
-      logPush(entries, `[냉전] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 말은 했지만 아직 어색하다.`, "normal");
-    }
-    return;
-  }
-
-  if (r < 0.10) {
-    const delta = -randInt(10, 18);
-    relAdd(a, b, delta);
-    relAdd(b, a, delta);
-    if (Math.random() < 0.55) {
-      setSpecial(a, b, "coldwar");
-      setSpecial(b, a, "coldwar");
-      logPush(entries, `[싸움] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 크게 다퉜다... (냉전)`, "normal");
-    } else {
-      logPush(entries, `[싸움] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 다퉜다.`, "normal");
-    }
-    return;
-  }
-
-  if (r < 0.18 && sA >= 25 && sB >= 25) {
-    const delta = randInt(12, 18);
-    relAdd(a, b, delta);
-    relAdd(b, a, delta);
-    logPush(entries, `[비밀대화] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 서로의 비밀을 털어놓았다.`, "green");
-    return;
-  }
-
-  if (r < 0.28 && (sp === "lover" || sp === "married") && Math.random() < 0.45) {
-    const delta = randInt(6, 10);
-    relAdd(a, b, delta, true);
-    relAdd(b, a, delta, true);
-    const extraCost = sp === "married" ? randInt(40, 90) : randInt(30, 70);
-    addMoney(a, -extraCost);
-    addMoney(b, -extraCost);
-    restoreEP(a, a.maxEp);
-    restoreEP(b, b.maxEp);
-    logPush(freeEntries, `[연애] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 애정을 확인했다. (-${extraCost}원씩, EP 풀충전)`, "pink");
+      logPush(entries, `[화해] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 서로 사과하고 화해했다.`,다. (- 서로 사랑을 교환했다. (-${extraC, t}원씩, E;
     return;
   }
 
@@ -872,9 +832,9 @@ function doTravelOrRest(char, freeEntries) {
   const mode = Math.random();
 
   if (mode < 0.55) {
-    const spend = randInt(1, 5);
-    const gainHp = randInt(5, 20) + spend;
-    const gainEp = randInt(1, 15) + spend;
+    const spend = randInt(1000, 5000);
+    const gainHp = randInt(5, 20) + int(spend*0.001);
+    const gainEp = randInt(1, 15) + int(spend*0.001);
 
     addMoney(char, -spend);
     restoreHP(char, gainHp);
@@ -888,7 +848,7 @@ function doTravelOrRest(char, freeEntries) {
     );
     return true;
   } else {
-    const cost = randInt(60, 200);
+    const cost = randInt(10000, 100000);
 
     if (safeNum(char.money, 0) < cost) {
       const spend = randInt(5, 20);
@@ -1015,6 +975,12 @@ function openAffinityModal(charId) {
   } else {
     rels.forEach(r => {
       const row = document.createElement("div");
+      row.style.cursor = "pointer";
+      row.onclick = () => {
+        switchTab("network", document.querySelector('.tab-btn[data-tab="network"]') || null);
+        highlightPersonInNetwork(r.id);
+      };
+
       row.className = "modal-item";
 
       const tag = relationshipLabel(r.score, r.special);
@@ -1092,6 +1058,83 @@ function buildNetworkData() {
 
   return { nodes, edges };
 }
+function highlightPersonInNetwork(personId) {
+  if (!network || !networkNodes || !networkEdges) return;
+
+
+  if (highlightedPersonId === personId) {
+    clearNetworkHighlight();
+    return;
+  }
+  highlightedPersonId = personId;
+
+ 
+  const neighbors = new Set(network.getConnectedNodes(personId));
+
+
+  const nodeUpdates = networkNodes.get().map(n => {
+    const keep = (n.id === personId) || neighbors.has(n.id);
+
+    if (keep) {
+      // 원래 색으로 복구: isMayor 기준 다시 계산
+      const isMayor = characters.find(c => c.id === n.id)?.isMayor;
+      const bg = isMayor ? "#fdcb6e" : "#dfe6e9";
+      return {
+        id: n.id,
+        color: { background: bg, border: "#636e72" },
+        font: { color: "#2d3436", face: "Pretendard" }
+      };
+    } else {
+      return {
+        id: n.id,
+        color: { background: "#2f2f2f", border: "#111" }, // 흑백(어둡게)
+        font: { color: "#777", face: "Pretendard" }
+      };
+    }
+  });
+  networkNodes.update(nodeUpdates);
+
+
+  const edgeUpdates = networkEdges.get().map(e => {
+    const keep = (e.from === personId || e.to === personId);
+
+    if (keep) {
+
+      const a = characters.find(c => c.id === e.from);
+      const b = characters.find(c => c.id === e.to);
+      const sp = (a && b) ? getSpecialBetween(a, b) : null;
+      const score = (a && b) ? relGet(a, b) : 0;
+      const score2 = (a && b) ? relGet(b, a) : 0;
+      const avg = Math.round((score + score2) / 2);
+
+      let color = "#b2bec3";
+      let width = 1;
+
+      if (sp === "married" || sp === "lover") { color = "#ff7675"; width = 3; }
+      else if (sp === "coldwar") { color = "#fdcb6e"; width = 2; }
+      else if (avg >= 61) { color = "#0984e3"; width = 2; }
+      else if (avg >= 31) { color = "#00b894"; width = 2; }
+      else if (avg < 0) { color = "#636e72"; width = 2; }
+
+      return { id: e.id, color: { color }, width, hidden: false };
+    } else {
+      return { id: e.id, color: { color: "#222" }, width: 1, hidden: false };
+    }
+  });
+  networkEdges.update(edgeUpdates);
+}
+
+function clearNetworkHighlight() {
+  if (!network || !networkNodes || !networkEdges) return;
+  highlightedPersonId = null;
+
+  // buildNetworkData() 기준으로 “원래 상태” 통째로 재구성하는 게 제일 안전함
+  const data = buildNetworkData();
+  networkNodes.clear();
+  networkEdges.clear();
+  networkNodes.add(data.nodes);
+  networkEdges.add(data.edges);
+}
 
 function renderNetwork() {
   const container = document.getElementById("networkView");
@@ -1103,6 +1146,10 @@ function renderNetwork() {
   if (villageView) villageView.style.display = "none";
 
   const data = buildNetworkData();
+
+  networkNodes = new vis.DataSet(data.nodes);
+  networkEdges = new vis.DataSet(data.edges);
+
   const options = {
     physics: {
       stabilization: { iterations: 120 },
@@ -1113,9 +1160,19 @@ function renderNetwork() {
     edges: { smooth: true }
   };
 
-  network = new vis.Network(container, data, options);
+  network = new vis.Network(container, { nodes: networkNodes, edges: networkEdges }, options);
+
+  network.on("click", (params) => {
+    if (params.nodes && params.nodes.length) {
+      highlightPersonInNetwork(params.nodes[0]);
+    } else {
+      clearNetworkHighlight();
+    }
+  });
+
   setTimeout(() => { network?.fit?.(); network?.redraw?.(); }, 0);
 }
+
 
 function switchTab(tab, btn) {
   activeTab = tab;
@@ -1298,7 +1355,6 @@ function nextDay() {
     const entries = [];
     const freeEntries = [];
 
-    // ✅ entries 만든 다음 호출해야 함
     const specialCtx = applySpecialDayEvents(day, entries);
 
     characters.forEach(normalizeCharacter);
@@ -1324,7 +1380,6 @@ function nextDay() {
         c.lastMain = "-";
         c.lastFree = "-";
 
-        // ✅ blockWork는 여기서 c를 가지고 처리
         if (specialCtx.blockWork) {
           c.lastMain = "휴식";
           c.lastFree = "여가";
@@ -1498,6 +1553,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
