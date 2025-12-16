@@ -316,7 +316,6 @@ function renderLogs(newEntries) {
 // UI / Character
 // =====================
 function ensureMbtiOptions() {
-function ensureMbtiOptions() {
   const sel = document.getElementById("mbtiInput");
   if (!sel) return;
 
@@ -796,8 +795,8 @@ function randomSocialEvent(a, b, entries, freeEntries) {
       setSpecial(b, a, null);
       relAdd(a, b, 15);
       relAdd(b, a, 15);
-      logPush(entries, `[화해] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 서로 사과하고 화해했다.`,다. (- 서로 사랑을 교환했다. (-${extraC, t}원씩, E;
-    return;
+      logPush(entries, `[화해] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 서로 사과하고 화해했다.`, "green");
+      return;
   }
 
   const chem = calcChem(a.mbti, b.mbti);
@@ -833,8 +832,8 @@ function doTravelOrRest(char, freeEntries) {
 
   if (mode < 0.55) {
     const spend = randInt(1000, 5000);
-    const gainHp = randInt(5, 20) + int(spend*0.001);
-    const gainEp = randInt(1, 15) + int(spend*0.001);
+    const gainHp = randInt(5, 20) + Math.floor(spend*0.001);
+    const gainEp = randInt(1, 15) +Math.floor(spend*0.001);
 
     addMoney(char, -spend);
     restoreHP(char, gainHp);
@@ -1553,6 +1552,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
