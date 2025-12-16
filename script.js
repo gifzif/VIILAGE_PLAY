@@ -375,8 +375,9 @@ function addCharacter() {
     skippedWorkDays: 0,
     lastMain: "-",
     lastFree: "-"
-    console.log("added:", name, mbti);
   });
+  
+    console.log("added:", name, mbti);
 
   nameEl.value = "";
   renderVillage();
@@ -1042,13 +1043,16 @@ function buildNetworkData() {
       else if (avg >= 31) { color = "#00b894"; width = 2; }
       else if (avg < 0) { color = "#636e72"; width = 2; }
 
-      edges.push({
-        from: a.id,
-        to: b.id,
-        value: Math.min(10, Math.max(1, Math.floor(Math.abs(avg) / 10))),
-        color: { color },
-        width
-      });
+      const edgeId = `${a.id}|${b.id}`;
+
+edges.push({
+  id: edgeId,
+  from: a.id,
+  to: b.id,
+  value: Math.min(10, Math.max(1, Math.floor(Math.abs(avg) / 10))),
+  color: { color },
+  width
+});
 
       seen.add(key);
     });
@@ -1476,6 +1480,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
