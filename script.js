@@ -375,6 +375,7 @@ function addCharacter() {
     skippedWorkDays: 0,
     lastMain: "-",
     lastFree: "-"
+    console.log("added:", name, mbti);
   });
 
   nameEl.value = "";
@@ -1554,6 +1555,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
