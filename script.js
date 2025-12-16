@@ -174,25 +174,58 @@ function addMoney(char, delta) {
 function chance(p) {
   return Math.random() < p;
 }
-function careLowEP(a, b, entries) {
-  if (b.sickDays <= 0) return false;
-  if (relGet(a, b) < 20) return false;
-  if (!canAct(a)) return false;
+function helpSick(a, b, entries) {
+  if (!canAct(a) || !canAct(b)) return false;
+  if (a.beggarDays > 0 || b.beggarDays > 0) return false;
 
-  const cost = randInt(10, 30);
+  // b의 EP가 낮을 때만 발동
+  const maxEp = Math.max(1, safeNum(b.maxEp, 1));
+  const ratio = safeNum(b.ep, 0) / maxEp;
+  if (ratio > 0.25) return false; // 25% 이하일 때만
+
+  // 호감도 조건 (원하는 기준으로 조절)
+  if (relGet(a, b) < 18) return false;
+
+  // 챙겨주기 비용/효과
+  const cost = randInt(5, 25);
   addMoney(a, -cost);
-  b.sickDays = Math.max(0, b.sickDays - 1);
 
-  relAdd(a, b, randInt(6, 10));
-  relAdd(b, a, randInt(3, 6));
+  const heal = randInt(8, 22);
+  restoreEP(b, heal);
 
-  logPush(
-    entries,
-    `💊 ${a.name}${getJosa(a.name,"은/는")} 아픈 ${b.name}${getJosa(b.name,"을/를")} 챙겨줬다.`,
-    "green"
-  );
+  relAdd(a, b, randInt(5, 9));
+  relAdd(b, a, randInt(2, 6));
+
+  logPush(entries, `🧃 ${a.name}${getJosa(a.name,"은/는")} 지친 ${b.name}${getJosa(b.name,"을/를")} 챙겨줬다. (EP +${heal})`, "green");
   return true;
 }
+function careLowEP(a, b, entries) {
+  if (!canAct(a) || !canAct(b)) return false;
+  if (a.beggarDays > 0 || b.beggarDays > 0) return false;
+
+  // b의 EP가 낮을 때만 발동
+  const maxEp = Math.max(1, safeNum(b.maxEp, 1));
+  const ratio = safeNum(b.ep, 0) / maxEp;
+  if (ratio > 0.25) return false; // 25% 이하일 때만
+
+  // 호감도 조건 (원하는 기준으로 조절)
+  if (relGet(a, b) < 18) return false;
+
+  // 챙겨주기 비용/효과
+  const cost = randInt(5, 25);
+  addMoney(a, -cost);
+
+  const heal = randInt(8, 22);
+  restoreEP(b, heal);
+
+  relAdd(a, b, randInt(5, 9));
+  relAdd(b, a, randInt(2, 6));
+
+  logPush(entries, `🧃 ${a.name}${getJosa(a.name,"은/는")} 지친 ${b.name}${getJosa(b.name,"을/를")} 챙겨줬다. (EP +${heal})`, "green");
+  return true;
+}
+
+
 function tryFlirt(a, b, entries) {
   if (relGet(a, b) < 30) return false;
   if (getSpecialBetween(a, b)) return false;
@@ -1608,7 +1641,8 @@ function nextDay() {
     selectMayorAtDay10(entries);
 
     logs = [...freeEntries.map(x => ({ day, ...x })), ...entries.map(x => ({ day, ...x })), ...logs];
-    renderLogs([...entries, ...freeEntries]);
+    renderLogs([...freeEntries, ...entries]);
+
     renderVillage();
     if (activeTab === "network") renderNetwork();
 
@@ -1635,6 +1669,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
