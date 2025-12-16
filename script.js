@@ -1085,162 +1085,181 @@ function saveLogText() {
 }
 
 function nextDay() {
-  if (characters.length === 0) return alert("최소 1명의 주민이 필요합니다.");
+  const btn = document.querySelector(".btn-next");
+  if (btn) { btn.disabled = true; btn.style.opacity = "0.6"; }
 
-  day += 1;
+  const prevDay = day;
 
-  const entries = [];
-  const freeEntries = [];
+  try {
+    if (characters.length === 0) { alert("최소 1명의 주민이 필요합니다."); return; }
 
-  characters.forEach(normalizeCharacter);
-  maybeAssignJobs(entries);
+    day = prevDay + 1;
 
-  characters.forEach(c => tickStatus(c, entries));
-  characters.forEach(c => maybeGetSick(c, entries));
+    const entries = [];
+    const freeEntries = [];
 
-  characters.forEach(c => {
-    if (c.job === "거지" || c.beggarDays > 0) beggarStep(c, entries);
-  });
+    characters.forEach(normalizeCharacter);
+    maybeAssignJobs(entries);
 
-  const actives = characters.filter(c => canAct(c) && c.beggarDays <= 0 && c.job !== "거지");
-
-  if (day <= 3) {
-    actives.forEach(c => doVillagePrep(c, entries));
-  } else {
-    const shuffled = [...actives].sort(() => Math.random() - 0.5);
-
-    shuffled.forEach(c => {
-      if (!canAct(c)) return;
-
-      c.lastMain = "-";
-      c.lastFree = "-";
-
-      if (c.isMayor) {
-        const hp = randInt(2, 6);
-        const ep = randInt(4, 9);
-        const income = randInt(70, 120);
-
-        consumeHP(c, hp);
-        consumeEP(c, ep);
-        addMoney(c, +income);
-
-        c.lastMain = "마을 관리";
-        c.lastFree = "여가";
-
-        logPush(entries, `[마을 관리] ${c.name}${getJosa(c.name,"은/는")} 마을을 위해 힘썼다. (+${income}원, HP -${hp}, EP -${ep})`, "normal");
-        if (c.hp <= 0 || c.ep <= 0) setFaint(c, entries);
-        return;
-      }
-
-      if (!c.job) {
-        c.lastMain = "대화";
-        c.lastFree = "여가";
-        return;
-      }
-
-      if (Math.random() < 0.62) {
-        const did = doWork(c, entries);
-        if (!did) c.skippedWorkDays += 1;
-      } else {
-        c.skippedWorkDays += 1;
-      }
-    });
-
-    const canSocial = characters.filter(c => canAct(c) && c.beggarDays <= 0 && c.job !== "거지");
-    const pairTrials = Math.min(4, Math.floor(canSocial.length / 2));
-    for (let i = 0; i < pairTrials; i++) {
-      const pair = pickPair(canSocial);
-      if (!pair) break;
-      const [a, b] = pair;
-
-      if (tryMarriage(a, b, entries)) continue;
-      if (tryConfess(a, b, entries)) continue;
-
-      randomSocialEvent(a, b, entries, freeEntries);
-
-      if (a.lastMain === "-") a.lastMain = "대화";
-      if (b.lastMain === "-") b.lastMain = "대화";
-      if (a.lastFree === "-") a.lastFree = "여가";
-      if (b.lastFree === "-") b.lastFree = "여가";
-    }
+    characters.forEach(c => tickStatus(c, entries));
+    characters.forEach(c => maybeGetSick(c, entries));
 
     characters.forEach(c => {
-      if (!canAct(c)) return;
-      if (c.beggarDays > 0 || c.job === "거지") return;
-
-      if (!c.job && day >= 4 && (day - c.dayJoined) === 0) {
-        logPush(entries, `[대화] ${c.name}${getJosa(c.name,"은/는")} 마을 주민들과 인사를 나눴다.`, "normal");
-        c.lastMain = "대화";
-        c.lastFree = "-";
-        return;
-      }
-
-      if (!c.job && day >= 4) {
-        logPush(entries, `[대화] ${c.name}${getJosa(c.name,"은/는")} 여기저기 기웃거리며 사람들을 만났다.`, "normal");
-        c.lastMain = "대화";
-        c.lastFree = "여가";
-        return;
-      }
-
-      if (c.lastMain === "-") {
-        if (Math.random() < 0.55) {
-          logPush(entries, `[대화] ${c.name}${getJosa(c.name,"은/는")} 주민과 짧게 수다를 떨었다.`, "normal");
-          c.lastMain = "대화";
-          c.lastFree = "여가";
-        } else {
-          c.lastMain = "휴식";
-          c.lastFree = "여가";
-        }
-      }
-
-      maybeBecomeBeggar(c);
+      if (c.job === "거지" || c.beggarDays > 0) beggarStep(c, entries);
     });
 
-    const freePool = characters.filter(c => canAct(c) && c.beggarDays <= 0 && c.job !== "거지");
-    if (freePool.length) {
-      freeTimeDivider(freeEntries);
+    const actives = characters.filter(c => canAct(c) && c.beggarDays <= 0 && c.job !== "거지");
 
-      const shuffledFree = [...freePool].sort(() => Math.random() - 0.5);
+    if (day <= 3) {
+      actives.forEach(c => doVillagePrep(c, entries));
+    } else {
+      const shuffled = [...actives].sort(() => Math.random() - 0.5);
 
-      const datingCandidates = shuffledFree.filter(c => safeNum(c.money,0) >= 80);
-      const datePair = pickPair(datingCandidates);
-      if (datePair && Math.random() < 0.45) {
-        const [a, b] = datePair;
-        tryDate(a, b, freeEntries);
-      }
-
-      shuffledFree.forEach(c => {
+      shuffled.forEach(c => {
         if (!canAct(c)) return;
-        if (c.lastFree === "데이트") return;
 
-        if (Math.random() < 0.18) {
-          doTravelOrRest(c, freeEntries);
-        } else {
-          const spend = randInt(8, 45);
-          addMoney(c, -spend);
-          restoreHP(c, randInt(8, 22) + Math.floor(spend * 0.6));
-          restoreEP(c, randInt(10, 26) + spend);
+        c.lastMain = "-";
+        c.lastFree = "-";
+
+        if (c.isMayor) {
+          const hp = randInt(2, 6);
+          const ep = randInt(4, 9);
+          const income = randInt(70, 120);
+
+          consumeHP(c, hp);
+          consumeEP(c, ep);
+          addMoney(c, +income);
+
+          c.lastMain = "마을 관리";
           c.lastFree = "여가";
-          logPush(freeEntries, `[여가] ${c.name}${getJosa(c.name,"은/는")} ${pick(WORDS.leisure)}로 기분을 풀었다. (-${spend}원)`, "blue");
+
+          logPush(entries, `[마을 관리] ${c.name}${getJosa(c.name,"은/는")} 마을을 위해 힘썼다. (+${income}원, HP -${hp}, EP -${ep})`, "normal");
+          if (c.hp <= 0 || c.ep <= 0) setFaint(c, entries);
+          return;
         }
 
-        if (c.hp <= 0 || c.ep <= 0) setFaint(c, entries);
+        if (!c.job) {
+          c.lastMain = "대화";
+          c.lastFree = "여가";
+          return;
+        }
+
+        if (Math.random() < 0.62) {
+          const did = doWork(c, entries);
+          if (!did) c.skippedWorkDays += 1;
+        } else {
+          c.skippedWorkDays += 1;
+        }
       });
+
+      const canSocial = characters.filter(c => canAct(c) && c.beggarDays <= 0 && c.job !== "거지");
+      const pairTrials = Math.min(4, Math.floor(canSocial.length / 2));
+
+      for (let i = 0; i < pairTrials; i++) {
+        const pair = pickPair(canSocial);
+        if (!pair) break;
+
+        const [a, b] = pair;
+
+        if (tryMarriage(a, b, entries)) continue;
+        if (tryConfess(a, b, entries)) continue;
+
+        randomSocialEvent(a, b, entries, freeEntries);
+
+        if (a.lastMain === "-") a.lastMain = "대화";
+        if (b.lastMain === "-") b.lastMain = "대화";
+        if (a.lastFree === "-") a.lastFree = "여가";
+        if (b.lastFree === "-") b.lastFree = "여가";
+      }
+
+      characters.forEach(c => {
+        if (!canAct(c)) return;
+        if (c.beggarDays > 0 || c.job === "거지") return;
+
+        if (!c.job && day >= 4 && (day - c.dayJoined) === 0) {
+          logPush(entries, `[대화] ${c.name}${getJosa(c.name,"은/는")} 마을 주민들과 인사를 나눴다.`, "normal");
+          c.lastMain = "대화";
+          c.lastFree = "-";
+          return;
+        }
+
+        if (!c.job && day >= 4) {
+          logPush(entries, `[대화] ${c.name}${getJosa(c.name,"은/는")} 여기저기 기웃거리며 사람들을 만났다.`, "normal");
+          c.lastMain = "대화";
+          c.lastFree = "여가";
+          return;
+        }
+
+        if (c.lastMain === "-") {
+          if (Math.random() < 0.55) {
+            logPush(entries, `[대화] ${c.name}${getJosa(c.name,"은/는")} 주민과 짧게 수다를 떨었다.`, "normal");
+            c.lastMain = "대화";
+            c.lastFree = "여가";
+          } else {
+            c.lastMain = "휴식";
+            c.lastFree = "여가";
+          }
+        }
+
+        maybeBecomeBeggar(c);
+      });
+
+      const freePool = characters.filter(c => canAct(c) && c.beggarDays <= 0 && c.job !== "거지");
+      if (freePool.length) {
+        freeTimeDivider(freeEntries);
+
+        const shuffledFree = [...freePool].sort(() => Math.random() - 0.5);
+
+        const datingCandidates = shuffledFree.filter(c => safeNum(c.money,0) >= 80);
+        const datePair = pickPair(datingCandidates);
+
+        if (datePair && Math.random() < 0.45) {
+          const [a, b] = datePair;
+          tryDate(a, b, freeEntries);
+        }
+
+        shuffledFree.forEach(c => {
+          if (!canAct(c)) return;
+          if (c.lastFree === "데이트") return;
+
+          if (Math.random() < 0.18) {
+            doTravelOrRest(c, freeEntries);
+          } else {
+            const spend = randInt(8, 45);
+            addMoney(c, -spend);
+            restoreHP(c, randInt(8, 22) + Math.floor(spend * 0.6));
+            restoreEP(c, randInt(10, 26) + spend);
+            c.lastFree = "여가";
+            logPush(freeEntries, `[여가] ${c.name}${getJosa(c.name,"은/는")} ${pick(WORDS.leisure)}로 기분을 풀었다. (-${spend}원)`, "blue");
+          }
+
+          if (c.hp <= 0 || c.ep <= 0) setFaint(c, entries);
+        });
+      }
     }
+
+    selectMayorAtDay10(entries);
+
+    logs = [...freeEntries.map(x => ({ day, ...x })), ...entries.map(x => ({ day, ...x })), ...logs];
+    renderLogs([...entries, ...freeEntries]);
+    renderVillage();
+    if (activeTab === "network") renderNetwork();
+
+  } catch (e) {
+    day = prevDay;
+    console.error(e);
+    alert("에러로 하루 진행이 중단됐어. 콘솔(F12)에서 에러 메시지 확인해줘!");
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = "1"; }
   }
-
-  selectMayorAtDay10(entries);
-
-  logs = [...freeEntries.map(x => ({ day, ...x })), ...entries.map(x => ({ day, ...x })), ...logs];
-  renderLogs([...entries, ...freeEntries]);
-  renderVillage();
-  if (activeTab === "network") renderNetwork();
 }
+
 
 window.onload = () => {
   ensureMbtiOptions();
   renderVillage();
 };
+
 
 
 
