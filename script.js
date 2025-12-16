@@ -406,7 +406,7 @@ function breakSpecial(a, b, entries, reasonLabel) {
   addMoney(a, -costA);
   addMoney(b, -costB);
 
-  logPush(entries, `[${reasonLabel}] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 관계를 정리했다. 💔 (-${costA}원/-${costB}원)`, "normal");
+  logPush(entries, `[${reasonLabel}] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 관계를 정리했다. 💔 (-${costA}원/-${costB}원)`, "danger");
   return true;
 }
 
@@ -1945,6 +1945,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
