@@ -1074,43 +1074,151 @@ edges.push({
 
   return { nodes, edges };
 }
-// ==========================================
-// [수정됨] 네트워크 강조 기능 (흑백 처리 로직)
-// ==========================================
+function applyRadialLayoutToAll(nodes, radius = 320) {
+  const n = nodes.length;
+  if (n === 0) return nodes;
+
+  // 가운데 비우고 "전원 방사형"이면: 모두 같은 원 위에 배치
+  const angleStep = (Math.PI * 2) / n;
+
+  return nodes.map((node, i) => {
+    const a = i * angleStep - Math.PI / 2; // 12시 방향부터 시작
+    const x = Math.round(Math.cos(a) * radius);
+    const y = Math.round(Math.sin(a) * radius);
+
+    return {
+      ...node,
+      x, y,
+      fixed: true  // ✅ 고정
+    };
+  });
+}
+function highlightPersonInNetwork(personId) {
+  if (!networkNodes || !networkEdges) return;
+  highlightedPersonId = personId;
+
+  // 연결된 이웃 노드 모으기
+  const connected = new Set([personId]);
+  networkEdges.forEach(e => {
+    if (e.from === personId) connected.add(e.to);
+    if (e.to === personId) connected.add(e.from);
+  });
+
+  // 노드 흑백 처리
+  const nodeUpdates = [];
+  networkNodes.forEach(n => {
+    const isOn = connected.has(n.id);
+    const isCenter = n.id === personId;
+
+    nodeUpdates.push({
+      id: n.id,
+      // 연결된 노드만 원래색(또는 강조색), 나머지 회색
+      color: {
+        background: isOn ? (isCenter ? "#ffeaa7" : "#dfe6e9") : "#2d3436",
+        border: isOn ? "#636e72" : "#111"
+      },
+      font: {
+        color: isOn ? "#2d3436" : "#777",
+        face: "Pretendard"
+      },
+      opacity: isOn ? 1 : 0.25
+    });
+  });
+  networkNodes.update(nodeUpdates);
+
+  // 엣지 흑백 처리 (선도 연결된 것만 살림)
+  const edgeUpdates = [];
+  networkEdges.forEach(e => {
+    const isOn = (e.from === personId || e.to === personId);
+    edgeUpdates.push({
+      id: e.id,
+      color: { color: isOn ? (e.color?.color || "#b2bec3") : "#555" },
+      width: isOn ? (e.width || 2) : 1,
+      opacity: isOn ? 1 : 0.15
+    });
+  });
+  networkEdges.update(edgeUpdates);
+
+  // 카메라 이동(선택) – 선택한 사람으로 살짝 이동
+  try {
+    network.focus(personId, { scale: 1.1, animation: { duration: 250 } });
+  } catch (e) {}
+}
+
+function clearNetworkHighlight() {
+  if (!networkNodes || !networkEdges) return;
+  highlightedPersonId = null;
+
+  // 노드 원복
+  const nodeUpdates = [];
+  networkNodes.forEach(n => {
+    // 이장 색 다시 반영하려면 characters에서 확인
+    const c = characters.find(x => x.id === n.id);
+    const bg = c?.isMayor ? "#fdcb6e" : "#dfe6e9";
+
+    nodeUpdates.push({
+      id: n.id,
+      color: { background: bg, border: "#636e72" },
+      font: { color: "#2d3436", face: "Pretendard" },
+      opacity: 1
+    });
+  });
+  networkNodes.update(nodeUpdates);
+
+  // 엣지 원복 (buildNetworkData에서 만든 색/두께는 e.color/e.width에 이미 들어있음)
+  const edgeUpdates = [];
+  networkEdges.forEach(e => {
+    edgeUpdates.push({
+      id: e.id,
+      color: { color: e.color?.color || "#b2bec3" },
+      width: e.width || 1,
+      opacity: 1
+    });
+  });
+  networkEdges.update(edgeUpdates);
+
+  try { network.fit({ animation: { duration: 200 } }); } catch (e) {}
+}
+
+
 function renderNetwork() {
   const container = document.getElementById("networkView");
   if (!container) return;
 
   const data = buildNetworkData();
 
-  // ✅ 저장된 좌표 로드
   const saved = JSON.parse(localStorage.getItem("vp_layout") || "null");
+
   if (saved) {
+    // ✅ 저장된 좌표 우선
     data.nodes = data.nodes.map(n => ({
       ...n,
       x: saved[n.id]?.x ?? n.x,
       y: saved[n.id]?.y ?? n.y,
-      fixed: true  // ✅ 아예 못 움직이게
+      fixed: true
     }));
+  } else {
+    // ✅ 저장 없으면 "방사형 고정 배치"로 시작
+    data.nodes = applyRadialLayoutToAll(data.nodes, 320);
   }
 
   networkNodes = new vis.DataSet(data.nodes);
   networkEdges = new vis.DataSet(data.edges);
 
   const options = {
-    physics: saved ? false : { stabilization: { iterations: 1200 } }, // 저장됐으면 physics OFF
+    physics: false, // ✅ 무조건 끔 (고정이 목적)
     interaction: {
       hover: true,
-      dragNodes: !saved,   // 저장됐으면 드래그도 막기
+      dragNodes: false, // ✅ 노드 못 움직이게
       dragView: true,
       zoomView: true
+    },
+    edges: {
+      smooth: { type: "continuous" } // 선을 좀 더 깔끔하게
     }
   };
 
   network = new vis.Network(container, { nodes: networkNodes, edges: networkEdges }, options);
-
-  // ✅ 처음 배치 완료 후 자동 저장하고 싶으면:
-  // network.once("stabilizationIterationsDone", () => saveLayout());
 
   network.on("click", (params) => {
     if (params.nodes?.length) highlightPersonInNetwork(params.nodes[0]);
@@ -1119,6 +1227,7 @@ function renderNetwork() {
 
   setTimeout(() => network?.fit?.(), 100);
 }
+
 
 
 function switchTab(tab, btn) { activeTab = tab; document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active")); if (btn) btn.classList.add("active"); const netWrap = document.getElementById("networkContainer"); const villageView = document.getElementById("villageView"); if (tab === "network") { if (netWrap) netWrap.style.display = "block"; if (villageView) villageView.style.display = "none"; renderNetwork(); } else { if (netWrap) netWrap.style.display = "none"; if (villageView) villageView.style.display = "grid"; renderVillage(); } }
@@ -1485,5 +1594,6 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
