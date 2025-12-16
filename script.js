@@ -653,28 +653,28 @@ function doTravelOrRest(char, freeEntries) {
 
   const mode = Math.random();
   if (mode < 0.55) {
-    const spend = randInt(10, 40);
+    const spend = randInt(1,5);
     addMoney(char, -spend);
     restoreHP(char, randInt(5,20) + spend);
     restoreEP(char, randInt(1,15) + spend);
     char.lastFree = "여가";
-    logPush(freeEntries, `[여가] ${char.name}${getJosa(char.name,"은/는")} ${pick(WORDS.leisure)}로 쉬었다. (-${spend}원)`, "blue");
+    logPush(freeEntries, `[여가] ${char.name}${getJosa(char.name,"은/는")} ${pick(WORDS.leisure)}로 쉬었다. (-${spend}원, HP +${gainHp}, EP +${gainEp})`, "blue");
     return true;
   } else {
-    const cost = randInt(60, 140);
+    const cost = randInt(60, 200);
     if (safeNum(char.money,0) < cost) {
       const spend = randInt(5, 20);
       addMoney(char, -spend);
-      restoreEP(char, randInt(8, 18));
+      restoreEP(char, randInt(1,5));
       char.lastFree = "여가";
-      logPush(freeEntries, `[여가] ${char.name}${getJosa(char.name,"은/는")} 돈이 부족해 가까운 곳에서 쉬었다. (-${spend}원)`, "blue");
+      logPush(freeEntries, `[여가] ${char.name}${getJosa(char.name,"은/는")} 돈이 부족해 가까운 곳에서 쉬었다. (-${spend}원, HP +${gainHp}, EP +${gainEp})`, "blue");
       return true;
     }
     addMoney(char, -cost);
     restoreHP(char, randInt(18, 35));
     restoreEP(char, randInt(20, 45));
     char.lastFree = "여행";
-    logPush(freeEntries, `[여행] ${char.name}${getJosa(char.name,"은/는")} ${pick(WORDS.travel)}로 여행을 다녀왔다. (-${cost}원)`, "blue");
+    logPush(freeEntries, `[여행] ${char.name}${getJosa(char.name,"은/는")} ${pick(WORDS.travel)}로 여행을 다녀왔다. (-${cost}원, HP +${gainHp}, EP +${gainEp})`, "blue");
     return true;
   }
 }
@@ -1212,5 +1212,6 @@ window.onload = () => {
   ensureMbtiOptions();
   renderVillage();
 };
+
 
 
