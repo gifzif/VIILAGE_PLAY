@@ -259,13 +259,13 @@ function maybeWorkWarning(char, entries) {
   if (!char.job || char.job === "거지") return;
 
   if (n === 3) {
-    logPush(entries, `📌 [주의] ${char.name}${getJosa(char.name,"은/는")} 결근이 잦아 눈치가 보인다…`, "normal");
+    logPush(entries, `📌 [주의] ${char.name}${getJosa(char.name,"은/는")} 결근이 잦아 눈치가 보인다…`, "danger");
   }
   if (n === 5) {
 
     const fine = randInt(20, 60);
     addMoney(char, -fine);
-    logPush(entries, `📌 [경고] ${char.name}${getJosa(char.name,"은/는")} 지각/결근 누적으로 일급(-${fine}원)이 깎였다...`, "normal");
+    logPush(entries, `📌 [경고] ${char.name}${getJosa(char.name,"은/는")} 지각/결근 누적으로 일급(-${fine}원)이 깎였다...`, "danger");
   }
 }
 
@@ -1945,6 +1945,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
