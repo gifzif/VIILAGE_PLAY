@@ -39,7 +39,7 @@ let logs = [];
 let day = 1;
 let activeTab = "village";
 let network = null;
-let gameEnded = false;
+
 
 function $(id){ return document.getElementById(id); }
 
@@ -831,16 +831,14 @@ function nextDay(){
   if (activeTab === "network") renderNetwork();
   updateDayUI();
 
-  if (day === 10) {
+    if (day === 10 && !mayorSelected) {
     const endLogs = [];
     selectMayorAtEnd(endLogs);
     logs = [...endLogs.map(x=>({ day, ...x })), ...logs];
     renderLogs(endLogs);
     renderVillage();
     if (activeTab === "network") renderNetwork();
-    gameEnded = true;
-    const btn = document.querySelector(".btn-next");
-    if (btn) btn.disabled = true;
+    mayorSelected = true;
   }
 }
 
@@ -1114,7 +1112,6 @@ function initMbtiSelect(){
 }
 
 function addCharacter(){
-  if (gameEnded) return alert("10일차가 끝났습니다. 새 게임으로 시작해주세요.");
   const name = ($("nameInput")?.value ?? "").trim();
   const mbti = $("mbtiInput")?.value;
 
