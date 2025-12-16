@@ -498,6 +498,13 @@ function renderLogs(newEntries) {
 
     const text = document.createElement("span");
     text.textContent = e.text;
+    if (e.kind === "divider") {
+      div.style.justifyContent = "center";
+      div.style.gap = "0";
+      marker.style.display = "none"; // 구분선엔 마커 제거
+      text.style.color = "#b2bec3";
+      text.style.letterSpacing = "1px";
+    }
 
     div.appendChild(marker);
     div.appendChild(text);
@@ -655,7 +662,7 @@ function canAct(char) {
 }
 
 function freeTimeDivider(entries) {
-  logPush(entries, "————— 자유시간 —————","divider");
+  logPush(entries, "—— 자유시간 ——","divider");
 }
 
 function setFaint(char, entries) {
@@ -1937,6 +1944,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
