@@ -652,32 +652,61 @@ function doTravelOrRest(char, freeEntries) {
   if (char.beggarDays > 0) return false;
 
   const mode = Math.random();
+
   if (mode < 0.55) {
-    const spend = randInt(1,5);
+    const spend = randInt(1, 5);
+    const gainHp = randInt(5, 20) + spend;
+    const gainEp = randInt(1, 15) + spend;
+
     addMoney(char, -spend);
-    restoreHP(char, randInt(5,20) + spend);
-    restoreEP(char, randInt(1,15) + spend);
+    restoreHP(char, gainHp);
+    restoreEP(char, gainEp);
+
     char.lastFree = "여가";
-    logPush(freeEntries, `[여가] ${char.name}${getJosa(char.name,"은/는")} ${pick(WORDS.leisure)}로 쉬었다. (-${spend}원, HP +${gainHp}, EP +${gainEp})`, "blue");
+    logPush(
+      freeEntries,
+      `[여가] ${char.name}${getJosa(char.name,"은/는")} ${pick(WORDS.leisure)}로 쉬었다. (-${spend}원, HP +${gainHp}, EP +${gainEp})`,
+      "blue"
+    );
     return true;
   } else {
     const cost = randInt(60, 200);
-    if (safeNum(char.money,0) < cost) {
+
+    if (safeNum(char.money, 0) < cost) {
       const spend = randInt(5, 20);
+      const gainHp = randInt(4, 10);
+      const gainEp = randInt(1, 5);
+
       addMoney(char, -spend);
-      restoreEP(char, randInt(1,5));
+      restoreHP(char, gainHp);
+      restoreEP(char, gainEp);
+
       char.lastFree = "여가";
-      logPush(freeEntries, `[여가] ${char.name}${getJosa(char.name,"은/는")} 돈이 부족해 가까운 곳에서 쉬었다. (-${spend}원, HP +${gainHp}, EP +${gainEp})`, "blue");
+      logPush(
+        freeEntries,
+        `[여가] ${char.name}${getJosa(char.name,"은/는")} 돈이 부족해 가까운 곳에서 쉬었다. (-${spend}원, HP +${gainHp}, EP +${gainEp})`,
+        "blue"
+      );
       return true;
     }
+
+    const gainHp = randInt(18, 35);
+    const gainEp = randInt(20, 45);
+
     addMoney(char, -cost);
-    restoreHP(char, randInt(18, 35));
-    restoreEP(char, randInt(20, 45));
+    restoreHP(char, gainHp);
+    restoreEP(char, gainEp);
+
     char.lastFree = "여행";
-    logPush(freeEntries, `[여행] ${char.name}${getJosa(char.name,"은/는")} ${pick(WORDS.travel)}로 여행을 다녀왔다. (-${cost}원, HP +${gainHp}, EP +${gainEp})`, "blue");
+    logPush(
+      freeEntries,
+      `[여행] ${char.name}${getJosa(char.name,"은/는")} ${pick(WORDS.travel)}로 여행을 다녀왔다. (-${cost}원, HP +${gainHp}, EP +${gainEp})`,
+      "blue"
+    );
     return true;
   }
 }
+
 
 function selectMayorAtDay10(entries) {
   if (mayorSelected) return;
@@ -1212,6 +1241,7 @@ window.onload = () => {
   ensureMbtiOptions();
   renderVillage();
 };
+
 
 
 
