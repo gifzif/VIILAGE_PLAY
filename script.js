@@ -171,6 +171,44 @@ function addMoney(char, delta) {
   char.money = char.money + delta;
   if (char.money < 0) char.money = 0;
 }
+function chance(p) {
+  return Math.random() < p;
+}
+function helpSick(a, b, entries) {
+  if (b.sickDays <= 0) return false;
+  if (relGet(a, b) < 20) return false;
+  if (!canAct(a)) return false;
+
+  const cost = randInt(10, 30);
+  addMoney(a, -cost);
+  b.sickDays = Math.max(0, b.sickDays - 1);
+
+  relAdd(a, b, randInt(6, 10));
+  relAdd(b, a, randInt(3, 6));
+
+  logPush(
+    entries,
+    `💊 ${a.name}${getJosa(a.name,"은/는")} 아픈 ${b.name}${getJosa(b.name,"을/를")} 챙겨줬다.`,
+    "green"
+  );
+  return true;
+}
+function tryFlirt(a, b, entries) {
+  if (relGet(a, b) < 30) return false;
+  if (getSpecialBetween(a, b)) return false;
+
+  if (chance(0.7)) {
+    relAdd(a, b, randInt(3, 7));
+    relAdd(b, a, randInt(2, 5));
+    logPush(entries, `💬 ${a.name}의 농담에 ${b.name}이(가) 웃었다.`, "normal");
+  } else {
+    relAdd(a, b, -4);
+    setSpecial(a, b, "coldwar");
+    setSpecial(b, a, "coldwar");
+    logPush(entries, `😬 ${a.name}의 플러팅 실패로 ${b.name}와(과) 어색해졌다…`, "normal");
+  }
+  return true;
+}
 
 function calcChem(m1, m2) {
   if (!compatibilityData[m1] || compatibilityData[m1][m2] == null) return 3;
@@ -789,6 +827,9 @@ function tryDate(a, b, freeEntries) {
 
 function randomSocialEvent(a, b, entries, freeEntries) {
   if (!canAct(a) || !canAct(b)) return;
+   if (helpSick(a, b, entries) || helpSick(b, a, entries)) return;
+  if (careLowEP(a, b, entries) || careLowEP(b, a, entries)) return;
+  if (tryFlirt(a, b, entries) || tryFlirt(b, a, entries)) return;
   consumeEP(a, randInt(1, 4));
   consumeEP(b, randInt(1, 4));
 
@@ -1594,6 +1635,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
