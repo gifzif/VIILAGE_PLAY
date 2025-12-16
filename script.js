@@ -71,6 +71,7 @@ function getJosa(word, type) {
   if (type === "이/가") return has ? "이" : "가";
   if (type === "을/를") return has ? "을" : "를";
   if (type === "와/과") return has ? "과" : "와";
+  if (type === "에게") return "에게";
   return "";
 }
 
@@ -172,16 +173,9 @@ function makeStats() {
   const mind = randInt(1, 5);
   const intel = randInt(1, 5);
   const agi = randInt(1, 5);
-
   const maxHp = 60 + str * 20;
   const maxEp = 60 + mind * 20;
-
-  return {
-    str, mind, intel, agi,
-    maxHp, maxEp,
-    hp: maxHp,
-    ep: maxEp
-  };
+  return { str, mind, intel, agi, maxHp, maxEp, hp: maxHp, ep: maxEp };
 }
 
 function addCharacter() {
@@ -262,10 +256,7 @@ function jobTier(job) {
 
 function assignRandomJob(char) {
   if (!char) return;
-  if (char.isMayor) {
-    char.job = "이장";
-    return;
-  }
+  if (char.isMayor) { char.job = "이장"; return; }
   char.job = pick(JOBS);
 }
 
@@ -279,7 +270,6 @@ function maybeAssignJobs(entries) {
     });
     return;
   }
-
   if (day > 4) {
     characters.forEach(c => {
       if (!c.job && (day - safeNum(c.dayJoined, day)) >= 1) {
@@ -327,10 +317,6 @@ function canAct(char) {
   return true;
 }
 
-function isBroke(char) {
-  return safeNum(char.money, 0) <= 0;
-}
-
 function startSick(char, entries) {
   char.sickDays = randInt(1, 3);
   logPush(entries, `[컨디션] ${char.name}${getJosa(char.name,"은/는")} 아파서 ${char.sickDays}일 동안 쉬어야 한다.`, "normal");
@@ -366,6 +352,20 @@ function maybeGetSick(char, entries) {
   if (Math.random() < 0.02) startSick(char, entries);
 }
 
+function isBroke(char) {
+  return safeNum(char.money, 0) <= 0;
+}
+
+function maybeBecomeBeggar(char) {
+  if (char.isMayor) return;
+  if (char.beggarDays > 0) return;
+  if (char.job === "거지") return;
+  if (isBroke(char) && safeNum(char.skippedWorkDays, 0) >= 1) {
+    char.job = "거지";
+    char.beggarDays = 10;
+  }
+}
+
 function beggarStep(char, entries) {
   if (char.beggarDays <= 0) return;
 
@@ -390,22 +390,14 @@ function beggarStep(char, entries) {
   }
 }
 
-function maybeBecomeBeggar(char) {
-  if (char.isMayor) return;
-  if (char.beggarDays > 0) return;
-  if (char.job === "거지") return;
-  if (isBroke(char) && char.skippedWorkDays >= 1) {
-    char.job = "거지";
-    char.beggarDays = 10;
-  }
-}
-
 function workIncome(char) {
   const tier = jobTier(char.job);
   const intel = safeNum(char.intel, 1);
   const agi = safeNum(char.agi, 1);
 
-  const epRatio = Math.max(0, Math.min(1, safeNum(char.ep, 0) / Math.max(1, safeNum(char.maxEp, 1))));
+  const maxEp = Math.max(1, safeNum(char.maxEp, 1));
+  const epRatio = Math.max(0, Math.min(1, safeNum(char.ep, 0) / maxEp));
+
   const base = 18 + tier * 22;
   const skill = (intel * 0.65 + agi * 0.35);
   const earn = Math.floor(base * skill * (0.55 + epRatio * 0.65));
@@ -416,18 +408,19 @@ function workCosts(char) {
   const str = safeNum(char.str, 1);
   const mind = safeNum(char.mind, 1);
 
-  let hp = randInt(8, 16);
-  let ep = randInt(10, 20);
+  let hp = randInt(10, 18);
+  let ep = randInt(12, 22);
 
-  hp = Math.max(4, Math.floor(hp * (1.2 - str * 0.12)));
-  ep = Math.max(6, Math.floor(ep * (1.2 - mind * 0.12)));
+  hp = Math.max(5, Math.floor(hp * (1.25 - str * 0.12)));
+  ep = Math.max(7, Math.floor(ep * (1.25 - mind * 0.12)));
 
-  if (char.job === "광부") hp += 6;
-  if (char.job === "농부") hp += 4;
-  if (char.job === "목수") hp += 4;
-  if (char.job === "의사") ep += 6;
-  if (char.job === "개발자") ep += 6;
-  if (char.job === "이장") { hp = Math.max(2, Math.floor(hp * 0.6)); ep = Math.max(4, Math.floor(ep * 0.6)); }
+  if (char.job === "광부") hp += 7;
+  if (char.job === "농부") hp += 5;
+  if (char.job === "목수") hp += 5;
+  if (char.job === "의사") ep += 7;
+  if (char.job === "개발자") ep += 7;
+
+  if (char.job === "이장") { hp = Math.max(3, Math.floor(hp * 0.6)); ep = Math.max(4, Math.floor(ep * 0.6)); }
 
   return { hp, ep };
 }
@@ -446,51 +439,22 @@ function doWork(char, entries) {
   char.lastMain = "돈벌기";
   char.lastFree = "여가";
 
-  logPush(entries, `[돈벌기] ${char.name}${getJosa(char.name,"은/는")} ${char.job}로 일해 ${income}원을 벌었다.`, "normal");
+  logPush(entries, `[돈벌기] ${char.name}${getJosa(char.name,"은/는")} ${char.job}로 일해 ${income}원을 벌었다. (HP -${c.hp}, EP -${c.ep})`, "normal");
 
   if (char.hp <= 0 || char.ep <= 0) setFaint(char, entries);
-
   return true;
 }
 
 function doVillagePrep(char, entries) {
   if (!canAct(char)) return;
-  consumeHP(char, randInt(4, 10));
-  consumeEP(char, randInt(4, 10));
+  const hp = randInt(5, 12);
+  const ep = randInt(5, 12);
+  consumeHP(char, hp);
+  consumeEP(char, ep);
   char.lastMain = "마을 정리";
   char.lastFree = "여가";
-  logPush(entries, `[마을] ${char.name}${getJosa(char.name,"은/는")} ${pick(WORDS.villageWork)}.`, "normal");
+  logPush(entries, `[마을] ${char.name}${getJosa(char.name,"은/는")} ${pick(WORDS.villageWork)}. (HP -${hp}, EP -${ep})`, "normal");
   if (char.hp <= 0 || char.ep <= 0) setFaint(char, entries);
-}
-
-function tryDate(a, b, entries, freeEntries) {
-  const sp = getSpecialBetween(a, b);
-  const sA = relGet(a, b);
-  const sB = relGet(b, a);
-  if (!canAct(a) || !canAct(b)) return false;
-  if (a.beggarDays > 0 || b.beggarDays > 0) return false;
-
-  if (!(sp === "lover" || sp === "married" || (sA >= 60 && sB >= 60))) return false;
-  if (safeNum(a.money,0) < 60 || safeNum(b.money,0) < 60) return false;
-
-  const costA = randInt(40, 90);
-  const costB = randInt(40, 90);
-
-  addMoney(a, -costA);
-  addMoney(b, -costB);
-
-  const boost = randInt(8, 15);
-  relAdd(a, b, boost, true);
-  relAdd(b, a, boost, true);
-
-  restoreEP(a, a.maxEp);
-  restoreEP(b, b.maxEp);
-
-  a.lastFree = "데이트";
-  b.lastFree = "데이트";
-
-  logPush(freeEntries, `[데이트] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 둘만의 시간을 보냈다. (-${costA}원/-${costB}원, EP 풀충전)`, "pink");
-  return true;
 }
 
 function tryConfess(a, b, entries) {
@@ -536,11 +500,12 @@ function tryMarriage(a, b, entries) {
   const sB = relGet(b, a);
   if (sA < 170 || sB < 170) return false;
 
-  const need = 140;
-  if (safeNum(a.money,0) < need || safeNum(b.money,0) < need) return false;
+  const minNeed = 160;
+  if (safeNum(a.money,0) < minNeed || safeNum(b.money,0) < minNeed) return false;
 
-  const costA = randInt(120, 200);
-  const costB = randInt(120, 200);
+  const costA = randInt(150, 260);
+  const costB = randInt(150, 260);
+
   addMoney(a, -costA);
   addMoney(b, -costB);
 
@@ -554,6 +519,36 @@ function tryMarriage(a, b, entries) {
   return true;
 }
 
+function tryDate(a, b, freeEntries) {
+  const sp = getSpecialBetween(a, b);
+  const sA = relGet(a, b);
+  const sB = relGet(b, a);
+  if (!canAct(a) || !canAct(b)) return false;
+  if (a.beggarDays > 0 || b.beggarDays > 0) return false;
+
+  if (!(sp === "lover" || sp === "married" || (sA >= 60 && sB >= 60))) return false;
+  if (safeNum(a.money,0) < 80 || safeNum(b.money,0) < 80) return false;
+
+  const costA = randInt(60, 140);
+  const costB = randInt(60, 140);
+
+  addMoney(a, -costA);
+  addMoney(b, -costB);
+
+  const boost = randInt(10, 18);
+  relAdd(a, b, boost, true);
+  relAdd(b, a, boost, true);
+
+  restoreEP(a, a.maxEp);
+  restoreEP(b, b.maxEp);
+
+  a.lastFree = "데이트";
+  b.lastFree = "데이트";
+
+  logPush(freeEntries, `[데이트] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 둘만의 시간을 보냈다. (-${costA}원/-${costB}원, EP 풀충전)`, "pink");
+  return true;
+}
+
 function randomSocialEvent(a, b, entries, freeEntries) {
   if (!canAct(a) || !canAct(b)) return;
 
@@ -562,6 +557,7 @@ function randomSocialEvent(a, b, entries, freeEntries) {
   const sB = relGet(b, a);
 
   const r = Math.random();
+
   if (sp === "coldwar") {
     if (Math.random() < 0.45) {
       setSpecial(a, b, null);
@@ -603,7 +599,7 @@ function randomSocialEvent(a, b, entries, freeEntries) {
     const delta = randInt(6, 10);
     relAdd(a, b, delta, true);
     relAdd(b, a, delta, true);
-    const extraCost = sp === "married" ? randInt(30, 70) : randInt(20, 55);
+    const extraCost = sp === "married" ? randInt(40, 90) : randInt(30, 70);
     addMoney(a, -extraCost);
     addMoney(b, -extraCost);
     restoreEP(a, a.maxEp);
@@ -613,7 +609,12 @@ function randomSocialEvent(a, b, entries, freeEntries) {
   }
 
   const chem = calcChem(a.mbti, b.mbti);
-  const deltaBase = chem >= 5 ? randInt(6, 12) : chem === 4 ? randInt(3, 9) : chem === 3 ? randInt(0, 7) : randInt(-4, 5);
+  const deltaBase =
+    chem >= 5 ? randInt(6, 12) :
+    chem === 4 ? randInt(3, 9) :
+    chem === 3 ? randInt(0, 7) :
+    randInt(-4, 5);
+
   relAdd(a, b, deltaBase);
   relAdd(b, a, deltaBase);
   logPush(entries, `[대화] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 대화를 나눴다.`, "normal");
@@ -624,7 +625,7 @@ function pickPair(pool) {
   const a = pool[Math.floor(Math.random() * pool.length)];
   let b = pool[Math.floor(Math.random() * pool.length)];
   let tries = 0;
-  while (b.id === a.id && tries < 8) {
+  while (b.id === a.id && tries < 10) {
     b = pool[Math.floor(Math.random() * pool.length)];
     tries++;
   }
@@ -695,82 +696,6 @@ function selectMayorAtDay10(entries) {
   best.beggarDays = 0;
 
   logPush(entries, `[이장] ${best.name}이(가) 이장으로 선정되었다! 👑`, "normal");
-}
-
-function renderVillage() {
-  const view = document.getElementById("villageView");
-  const dayEl = document.getElementById("dayDisplay");
-  if (dayEl) dayEl.textContent = String(day);
-  if (!view) return;
-
-  view.innerHTML = "";
-
-  if (characters.length === 0) {
-    const empty = document.createElement("div");
-    empty.style.color = "#888";
-    empty.textContent = "아직 주민이 없습니다. 입주 버튼으로 추가하세요.";
-    view.appendChild(empty);
-    return;
-  }
-
-  characters.forEach(c => {
-    c.money = safeNum(c.money, 100);
-
-    c.maxHp = Math.max(1, safeNum(c.maxHp, 100));
-    c.maxEp = Math.max(1, safeNum(c.maxEp, 100));
-
-    c.hp = Math.min(c.maxHp, Math.max(0, safeNum(c.hp, c.maxHp)));
-    c.ep = Math.min(c.maxEp, Math.max(0, safeNum(c.ep, c.maxEp)));
-
-    c.skippedWorkDays = safeNum(c.skippedWorkDays, 0);
-    c.lastMain = "-";
-    c.lastFree = "-";
-
-    const hpPct = Math.max(0, Math.min(100, Math.floor((c.hp / c.maxHp) * 100)));
-    const epPct = Math.max(0, Math.min(100, Math.floor((c.ep / c.maxEp) * 100)));
-
-    const card = document.createElement("div");
-    card.className = "char-card";
-
-    const jobLabel = c.job ? c.job : (day < 4 ? "정착중" : "무직");
-    const statusBits = [];
-    if (c.sickDays > 0) statusBits.push("아픔");
-    if (c.faintDays > 0) statusBits.push("기절");
-    if (c.beggarDays > 0 || c.job === "거지") statusBits.push("거지");
-
-    const statusStr = statusBits.length ? ` · ${statusBits.join(", ")}` : "";
-
-    card.innerHTML = `
-      ${c.isMayor ? `<div class="mayor-crown">👑</div>` : ``}
-      <div class="char-header">
-        <div class="char-name">${c.name}</div>
-        <div class="char-job-badge">${jobLabel}${statusStr ? ` <span class="status-beggar">${statusStr}</span>` : ``}</div>
-      </div>
-      <div class="char-money">💰 ${safeNum(c.money,0).toLocaleString()}원</div>
-      <div class="stats-row">
-        <div>근력 ${c.str}</div>
-        <div>정신 ${c.mind}</div>
-        <div>지능 ${c.intel}</div>
-        <div>민첩 ${c.agi}</div>
-      </div>
-      <div class="bar-group"><div class="bar-label">HP</div><div class="bar-track"><div class="bar-fill hp-fill" style="width:${hpPct}%"></div></div><div style="width:62px;text-align:right;color:#888;">${c.hp}/${c.maxHp}</div></div>
-      <div class="bar-group"><div class="bar-label">EP</div><div class="bar-track"><div class="bar-fill ep-fill" style="width:${epPct}%"></div></div><div style="width:62px;text-align:right;color:#888;">${c.ep}/${c.maxEp}</div></div>
-      <button class="btn-detail">관계 보기</button>
-      <button class="btn-detail" style="background:#ffeaa7;color:#333;margin-top:8px;">삭제</button>
-    `;
-
-    const buttons = card.querySelectorAll("button");
-    const btnRel = buttons[0];
-    const btnDel = buttons[1];
-
-    btnRel.onclick = () => openAffinityModal(c.id);
-    btnDel.onclick = () => {
-      if (!confirm("삭제하시겠습니까?")) return;
-      removeCharacter(c.id);
-    };
-
-    view.appendChild(card);
-  });
 }
 
 function relationshipLabel(score, special) {
@@ -857,10 +782,7 @@ function buildNetworkData() {
       label: c.name,
       shape: "dot",
       size: c.isMayor ? 22 : 18,
-      color: {
-        background: color,
-        border: "#636e72"
-      },
+      color: { background: color, border: "#636e72" },
       font: { color: "#2d3436", face: "Pretendard" }
     };
   });
@@ -949,16 +871,98 @@ function switchTab(tab, btn) {
   }
 }
 
-function saveData() {
-  const payload = {
-    version: 1.0,
-    day,
-    mayorSelected,
-    mayorId,
-    characters,
-    logs
-  };
+function normalizeCharacter(c) {
+  c.money = safeNum(c.money, 0);
 
+  c.str = safeNum(c.str, 1);
+  c.mind = safeNum(c.mind, 1);
+  c.intel = safeNum(c.intel, 1);
+  c.agi = safeNum(c.agi, 1);
+
+  c.maxHp = Math.max(1, safeNum(c.maxHp, 60 + c.str * 20));
+  c.maxEp = Math.max(1, safeNum(c.maxEp, 60 + c.mind * 20));
+
+  c.hp = Math.min(c.maxHp, Math.max(0, safeNum(c.hp, c.maxHp)));
+  c.ep = Math.min(c.maxEp, Math.max(0, safeNum(c.ep, c.maxEp)));
+
+  c.relationships = c.relationships || {};
+  c.specialRelations = c.specialRelations || {};
+
+  c.sickDays = safeNum(c.sickDays, 0);
+  c.faintDays = safeNum(c.faintDays, 0);
+  c.beggarDays = safeNum(c.beggarDays, 0);
+  c.skippedWorkDays = safeNum(c.skippedWorkDays, 0);
+
+  c.lastMain = c.lastMain || "-";
+  c.lastFree = c.lastFree || "-";
+  c.dayJoined = safeNum(c.dayJoined, 1);
+  c.isMayor = !!c.isMayor;
+}
+
+function renderVillage() {
+  const view = document.getElementById("villageView");
+  const dayEl = document.getElementById("dayDisplay");
+  if (dayEl) dayEl.textContent = String(day);
+  if (!view) return;
+
+  view.innerHTML = "";
+
+  if (characters.length === 0) {
+    const empty = document.createElement("div");
+    empty.style.color = "#888";
+    empty.textContent = "아직 주민이 없습니다. 입주 버튼으로 추가하세요.";
+    view.appendChild(empty);
+    return;
+  }
+
+  characters.forEach(c => {
+    normalizeCharacter(c);
+
+    const hpPct = Math.max(0, Math.min(100, Math.floor((c.hp / c.maxHp) * 100)));
+    const epPct = Math.max(0, Math.min(100, Math.floor((c.ep / c.maxEp) * 100)));
+
+    const card = document.createElement("div");
+    card.className = "char-card";
+
+    const jobLabel = c.job ? c.job : (day < 4 ? "정착중" : "무직");
+    const statusBits = [];
+    if (c.sickDays > 0) statusBits.push("아픔");
+    if (c.faintDays > 0) statusBits.push("기절");
+    if (c.beggarDays > 0 || c.job === "거지") statusBits.push("거지");
+    const statusStr = statusBits.length ? ` · ${statusBits.join(", ")}` : "";
+
+    card.innerHTML = `
+      ${c.isMayor ? `<div class="mayor-crown">👑</div>` : ``}
+      <div class="char-header">
+        <div class="char-name">${c.name}</div>
+        <div class="char-job-badge">${jobLabel}${statusStr ? ` <span class="status-beggar">${statusStr}</span>` : ``}</div>
+      </div>
+      <div class="char-money">💰 ${safeNum(c.money,0).toLocaleString()}원</div>
+      <div class="stats-row">
+        <div>근력 ${c.str}</div>
+        <div>정신 ${c.mind}</div>
+        <div>지능 ${c.intel}</div>
+        <div>민첩 ${c.agi}</div>
+      </div>
+      <div class="bar-group"><div class="bar-label">HP</div><div class="bar-track"><div class="bar-fill hp-fill" style="width:${hpPct}%"></div></div><div style="width:62px;text-align:right;color:#888;">${c.hp}/${c.maxHp}</div></div>
+      <div class="bar-group"><div class="bar-label">EP</div><div class="bar-track"><div class="bar-fill ep-fill" style="width:${epPct}%"></div></div><div style="width:62px;text-align:right;color:#888;">${c.ep}/${c.maxEp}</div></div>
+      <button class="btn-detail">관계 보기</button>
+      <button class="btn-detail" style="background:#ffeaa7;color:#333;margin-top:8px;">삭제</button>
+    `;
+
+    const buttons = card.querySelectorAll("button");
+    buttons[0].onclick = () => openAffinityModal(c.id);
+    buttons[1].onclick = () => {
+      if (!confirm("삭제하시겠습니까?")) return;
+      removeCharacter(c.id);
+    };
+
+    view.appendChild(card);
+  });
+}
+
+function saveData() {
+  const payload = { version: 1.1, day, mayorSelected, mayorId, characters, logs };
   const str = JSON.stringify(payload);
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(str);
 
@@ -978,7 +982,6 @@ function loadData(input) {
   reader.onload = (e) => {
     try {
       const json = JSON.parse(e.target.result);
-
       if (!confirm("현재 데이터가 덮어씌워집니다. 진행할까요?")) return;
 
       day = safeNum(json.day, 1);
@@ -986,37 +989,10 @@ function loadData(input) {
       mayorId = json.mayorId || null;
 
       characters = (json.characters || []).map(c => {
-        const st = {
-          str: safeNum(c.str, 1),
-          mind: safeNum(c.mind, 1),
-          intel: safeNum(c.intel, 1),
-          agi: safeNum(c.agi, 1)
-        };
-        const maxHp = Math.max(1, safeNum(c.maxHp, 60 + st.str * 20));
-        const maxEp = Math.max(1, safeNum(c.maxEp, 60 + st.mind * 20));
-
-        return {
-          id: c.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 8)),
-          name: c.name,
-          mbti: c.mbti,
-          dayJoined: safeNum(c.dayJoined, day),
-          job: c.job || null,
-          isMayor: !!c.isMayor,
-          money: safeNum(c.money, 200),
-          ...st,
-          maxHp,
-          maxEp,
-          hp: Math.min(maxHp, Math.max(0, safeNum(c.hp, maxHp))),
-          ep: Math.min(maxEp, Math.max(0, safeNum(c.ep, maxEp))),
-          relationships: c.relationships || {},
-          specialRelations: c.specialRelations || {},
-          sickDays: safeNum(c.sickDays, 0),
-          faintDays: safeNum(c.faintDays, 0),
-          beggarDays: safeNum(c.beggarDays, 0),
-          skippedWorkDays: safeNum(c.skippedWorkDays, 0),
-          lastMain: c.lastMain || "-",
-          lastFree: c.lastFree || "-"
-        };
+        const id = c.id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
+        const obj = { ...c, id };
+        normalizeCharacter(obj);
+        return obj;
       });
 
       if (mayorId) {
@@ -1072,16 +1048,8 @@ function nextDay() {
   const entries = [];
   const freeEntries = [];
 
+  characters.forEach(normalizeCharacter);
   maybeAssignJobs(entries);
-
-  characters.forEach(c => {
-    c.money = safeNum(c.money, 200);
-    c.hp = safeNum(c.hp, c.maxHp);
-    c.ep = safeNum(c.ep, c.maxEp);
-    c.skippedWorkDays = safeNum(c.skippedWorkDays, 0);
-    c.lastMain = "-";
-    c.lastFree = "-";
-  });
 
   characters.forEach(c => tickStatus(c, entries));
   characters.forEach(c => maybeGetSick(c, entries));
@@ -1091,25 +1059,31 @@ function nextDay() {
   });
 
   const actives = characters.filter(c => canAct(c) && c.beggarDays <= 0 && c.job !== "거지");
-  const canSocial = actives.filter(c => canAct(c));
 
   if (day <= 3) {
     actives.forEach(c => doVillagePrep(c, entries));
   } else {
     const shuffled = [...actives].sort(() => Math.random() - 0.5);
 
-    const worked = new Set();
     shuffled.forEach(c => {
       if (!canAct(c)) return;
+
+      c.lastMain = "-";
+      c.lastFree = "-";
+
       if (c.isMayor) {
+        const hp = randInt(2, 6);
+        const ep = randInt(4, 9);
         const income = randInt(70, 120);
-        consumeHP(c, randInt(2, 6));
-        consumeEP(c, randInt(4, 9));
+
+        consumeHP(c, hp);
+        consumeEP(c, ep);
         addMoney(c, +income);
+
         c.lastMain = "마을 관리";
         c.lastFree = "여가";
-        worked.add(c.id);
-        logPush(entries, `[마을 관리] ${c.name}${getJosa(c.name,"은/는")} 마을을 위해 힘썼다. (+${income}원)`, "normal");
+
+        logPush(entries, `[마을 관리] ${c.name}${getJosa(c.name,"은/는")} 마을을 위해 힘썼다. (+${income}원, HP -${hp}, EP -${ep})`, "normal");
         if (c.hp <= 0 || c.ep <= 0) setFaint(c, entries);
         return;
       }
@@ -1122,35 +1096,32 @@ function nextDay() {
 
       if (Math.random() < 0.62) {
         const did = doWork(c, entries);
-        if (did) worked.add(c.id);
         if (!did) c.skippedWorkDays += 1;
       } else {
         c.skippedWorkDays += 1;
       }
     });
 
+    const canSocial = characters.filter(c => canAct(c) && c.beggarDays <= 0 && c.job !== "거지");
     const pairTrials = Math.min(4, Math.floor(canSocial.length / 2));
     for (let i = 0; i < pairTrials; i++) {
       const pair = pickPair(canSocial);
       if (!pair) break;
       const [a, b] = pair;
 
-      if (!canAct(a) || !canAct(b)) continue;
-      if (a.id === b.id) continue;
-
       if (tryMarriage(a, b, entries)) continue;
       if (tryConfess(a, b, entries)) continue;
 
       randomSocialEvent(a, b, entries, freeEntries);
 
-      a.lastMain = "대화";
-      b.lastMain = "대화";
-      a.lastFree = a.lastFree === "-" ? "여가" : a.lastFree;
-      b.lastFree = b.lastFree === "-" ? "여가" : b.lastFree;
+      if (a.lastMain === "-") a.lastMain = "대화";
+      if (b.lastMain === "-") b.lastMain = "대화";
+      if (a.lastFree === "-") a.lastFree = "여가";
+      if (b.lastFree === "-") b.lastFree = "여가";
     }
 
     characters.forEach(c => {
-      if (c.faintDays > 0 || c.sickDays > 0) return;
+      if (!canAct(c)) return;
       if (c.beggarDays > 0 || c.job === "거지") return;
 
       if (!c.job && day >= 4 && (day - c.dayJoined) === 0) {
@@ -1187,29 +1158,26 @@ function nextDay() {
 
       const shuffledFree = [...freePool].sort(() => Math.random() - 0.5);
 
-      const datingCandidates = shuffledFree.filter(c => safeNum(c.money,0) >= 60);
+      const datingCandidates = shuffledFree.filter(c => safeNum(c.money,0) >= 80);
       const datePair = pickPair(datingCandidates);
       if (datePair && Math.random() < 0.45) {
         const [a, b] = datePair;
-        tryDate(a, b, entries, freeEntries);
+        tryDate(a, b, freeEntries);
       }
 
       shuffledFree.forEach(c => {
         if (!canAct(c)) return;
         if (c.lastFree === "데이트") return;
 
-        const traveled = (Math.random() < 0.18);
-        if (traveled) {
+        if (Math.random() < 0.18) {
           doTravelOrRest(c, freeEntries);
         } else {
-          if (c.lastMain === "돈벌기" || c.lastMain === "마을 관리" || c.lastMain === "마을 정리" || c.lastMain === "대화" || c.lastMain === "휴식") {
-            const spend = randInt(8, 45);
-            addMoney(c, -spend);
-            restoreHP(c, randInt(8, 22) + Math.floor(spend * 0.6));
-            restoreEP(c, randInt(10, 26) + spend);
-            c.lastFree = "여가";
-            logPush(freeEntries, `[여가] ${c.name}${getJosa(c.name,"은/는")} ${pick(WORDS.leisure)}로 기분을 풀었다. (-${spend}원)`, "blue");
-          }
+          const spend = randInt(8, 45);
+          addMoney(c, -spend);
+          restoreHP(c, randInt(8, 22) + Math.floor(spend * 0.6));
+          restoreEP(c, randInt(10, 26) + spend);
+          c.lastFree = "여가";
+          logPush(freeEntries, `[여가] ${c.name}${getJosa(c.name,"은/는")} ${pick(WORDS.leisure)}로 기분을 풀었다. (-${spend}원)`, "blue");
         }
 
         if (c.hp <= 0 || c.ep <= 0) setFaint(c, entries);
@@ -1220,7 +1188,6 @@ function nextDay() {
   selectMayorAtDay10(entries);
 
   logs = [...freeEntries.map(x => ({ day, ...x })), ...entries.map(x => ({ day, ...x })), ...logs];
-
   renderLogs([...entries, ...freeEntries]);
   renderVillage();
   if (activeTab === "network") renderNetwork();
@@ -1230,4 +1197,3 @@ window.onload = () => {
   ensureMbtiOptions();
   renderVillage();
 };
-
