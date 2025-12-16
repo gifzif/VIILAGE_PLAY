@@ -1060,22 +1060,22 @@ function highlightPersonInNetwork(personId) {
   if (!network || !networkNodes || !networkEdges) return;
 
 
+  personId = String(personId);
+
   if (highlightedPersonId === personId) {
     clearNetworkHighlight();
     return;
   }
   highlightedPersonId = personId;
 
- 
-  const neighbors = new Set(network.getConnectedNodes(personId));
-
+  const neighbors = new Set(network.getConnectedNodes(personId).map(String));
 
   const nodeUpdates = networkNodes.get().map(n => {
-    const keep = (n.id === personId) || neighbors.has(n.id);
+    const nid = String(n.id);
+    const keep = (nid === personId) || neighbors.has(nid);
 
     if (keep) {
-      // 원래 색으로 복구: isMayor 기준 다시 계산
-      const isMayor = characters.find(c => c.id === n.id)?.isMayor;
+      const isMayor = characters.find(c => String(c.id) === nid)?.isMayor;
       const bg = isMayor ? "#fdcb6e" : "#dfe6e9";
       return {
         id: n.id,
@@ -1085,11 +1085,41 @@ function highlightPersonInNetwork(personId) {
     } else {
       return {
         id: n.id,
-        color: { background: "#2f2f2f", border: "#111" }, // 흑백(어둡게)
+        color: { background: "#2f2f2f", border: "#111" },
         font: { color: "#777", face: "Pretendard" }
       };
     }
   });
+  networkNodes.update(nodeUpdates);
+
+  const edgeUpdates = networkEdges.get().map(e => {
+    const keep = (String(e.from) === personId || String(e.to) === personId);
+
+    if (keep) {
+      const a = characters.find(c => String(c.id) === String(e.from));
+      const b = characters.find(c => String(c.id) === String(e.to));
+      const sp = (a && b) ? getSpecialBetween(a, b) : null;
+      const score = (a && b) ? relGet(a, b) : 0;
+      const score2 = (a && b) ? relGet(b, a) : 0;
+      const avg = Math.round((score + score2) / 2);
+
+      let color = "#b2bec3";
+      let width = 1;
+
+      if (sp === "married" || sp === "lover") { color = "#ff7675"; width = 3; }
+      else if (sp === "coldwar") { color = "#fdcb6e"; width = 2; }
+      else if (avg >= 61) { color = "#0984e3"; width = 2; }
+      else if (avg >= 31) { color = "#00b894"; width = 2; }
+      else if (avg < 0) { color = "#636e72"; width = 2; }
+
+      return { id: e.id, color: { color }, width, hidden: false };
+    } else {
+      return { id: e.id, color: { color: "#222" }, width: 1, hidden: false };
+    }
+  });
+  networkEdges.update(edgeUpdates);
+}
+
   networkNodes.update(nodeUpdates);
 
 
@@ -1555,6 +1585,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
