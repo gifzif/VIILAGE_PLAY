@@ -896,8 +896,9 @@ function normalizeCharacter(c) {
   c.maxHp = Math.max(1, safeNum(c.maxHp, 60 + c.str * 20));
   c.maxEp = Math.max(1, safeNum(c.maxEp, 60 + c.mind * 20));
 
-  c.hp = Math.min(c.maxHp, Math.max(0, safeNum(c.hp, c.maxHp)));
-  c.ep = Math.min(c.maxEp, Math.max(0, safeNum(c.ep, c.maxEp)));
+c.hp = Math.min(c.maxHp, Math.max(0, safeNum(c.hp, 0)));
+c.ep = Math.min(c.maxEp, Math.max(0, safeNum(c.ep, 0)));
+
 
   c.relationships = c.relationships || {};
   c.specialRelations = c.specialRelations || {};
@@ -1211,4 +1212,5 @@ window.onload = () => {
   ensureMbtiOptions();
   renderVillage();
 };
+
 
