@@ -1115,7 +1115,7 @@ function renderNetwork() {
   setTimeout(() => { network?.fit?.(); }, 100);
 }
 
-// ▼▼▼▼ 여기가 사라져서 오류가 났던 부분입니다 (복구됨) ▼▼▼▼
+function switchTab(tab, btn) { activeTab = tab; document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active")); if (btn) btn.classList.add("active"); const netWrap = document.getElementById("networkContainer"); const villageView = document.getElementById("villageView"); if (tab === "network") { if (netWrap) netWrap.style.display = "block"; if (villageView) villageView.style.display = "none"; renderNetwork(); } else { if (netWrap) netWrap.style.display = "none"; if (villageView) villageView.style.display = "grid"; renderVillage(); } }
 function renderVillage() {
   const view = document.getElementById("villageView");
   const dayEl = document.getElementById("dayDisplay");
@@ -1479,23 +1479,3 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
