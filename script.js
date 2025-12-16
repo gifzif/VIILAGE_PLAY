@@ -754,6 +754,7 @@ function workCosts(char) {
 function doWork(char, entries) {
   if (!char.job || char.job === "거지") return false;
   if (!canAct(char)) return false;
+  char.skippedWorkDays = 0;
 
   const income = workIncome(char);
   const c = workCosts(char);
@@ -769,6 +770,8 @@ function doWork(char, entries) {
 
   if (char.hp <= 0 || char.ep <= 0) setFaint(char, entries);
   return true;
+}
+turn true;
 }
 
 function doVillagePrep(char, entries) {
@@ -1686,8 +1689,27 @@ function nextDay() {
           c.lastFree = "여가";
           return;
         }
-
+        
+        const epRatio = safeNum(c.ep,0) / Math.max(1, safeNum(c.maxEp,1));
+        
+        let pWork =
+          0.72 +
+          (safeNum(c.diligence,3) - 3) * 0.08 +     
+          jobAttendanceBias(c.job) +           
+          (epRatio - 0.5) * 0.12;              
+      
+        pWork = Math.max(0.12, Math.min(0.95, pWork));
+        
+       
+        if (Math.random() < pWork) {
+          doWork(c, entries);
+        } else {
+          skipWorkLazy(c, entries);
+        }
+        
+       
         maybeWorkWarning(c, entries);
+
 
       });
 
@@ -1741,7 +1763,7 @@ function nextDay() {
         }
 
         maybeBecomeBeggar(c);
-        maybeWorkWarning(c, entries);
+  
       });
 
       const freePool = characters.filter(c => canAct(c) && c.beggarDays <= 0 && c.job !== "거지");
@@ -1830,6 +1852,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
