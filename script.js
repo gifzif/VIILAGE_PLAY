@@ -448,6 +448,7 @@ function logKindColor(kind) {
   if (kind === "green") return "#00b894";
   if (kind === "pink")  return "#ff7675";
   if (kind === "danger") return "#d63031";
+  if (kind === "hilighter") return "#E3D432";
   if (kind === "divider") return "#636e72";
   return "#b2bec3"; 
 }
@@ -1254,7 +1255,7 @@ function selectMayorAtDay10(entries) {
   best.job = "이장";
   best.beggarDays = 0;
 
-  logPush(entries, `[이장] ${best.name}이(가) 이장으로 선정되었다! 👑`, "normal");
+  logPush(entries, `[이장] ${best.name}이(가) 이장으로 선정되었다! 👑`, "hilighter");
 }
 
 // =====================
@@ -1944,6 +1945,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
