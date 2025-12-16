@@ -1583,7 +1583,7 @@ function nextDay() {
 
       const freePool = characters.filter(c => canAct(c) && c.beggarDays <= 0 && c.job !== "거지");
       if (freePool.length) {
-        freeTimeDivider(entries);
+        freeTimeDivider(freeEntries);
 
         const shuffledFree = [...freePool].sort(() => Math.random() - 0.5);
 
@@ -1638,7 +1638,7 @@ function nextDay() {
     selectMayorAtDay10(entries);
 
     logs = [...freeEntries.map(x => ({ day, ...x })), ...entries.map(x => ({ day, ...x })), ...logs];
-    renderLogs([...freeEntries, ...entries]);
+    renderLogs([...entries, ...freeEntries]);
 
     renderVillage();
     if (activeTab === "network") renderNetwork();
@@ -1666,6 +1666,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
