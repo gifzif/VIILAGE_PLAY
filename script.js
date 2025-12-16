@@ -293,6 +293,20 @@ function logKindColor(kind) {
   return "#dfe6e9";
 }
 
+
+function saveLayout() {
+  if (!network) return;
+  network.storePositions(); // DataSet에 x,y가 들어감
+
+  const pos = {};
+  networkNodes.forEach(n => { pos[n.id] = { x: n.x, y: n.y }; });
+
+  localStorage.setItem("vp_layout", JSON.stringify(pos));
+  alert("레이아웃 저장됨!");
+}
+window.saveLayout = saveLayout;
+
+
 function renderLogs(newEntries) {
   const container = document.getElementById("logContent");
   if (!container) return;
@@ -1067,53 +1081,45 @@ function renderNetwork() {
   const container = document.getElementById("networkView");
   if (!container) return;
 
-  const netWrap = document.getElementById("networkContainer");
-  const villageView = document.getElementById("villageView");
-  if (netWrap) netWrap.style.display = "block";
-  if (villageView) villageView.style.display = "none";
-
   const data = buildNetworkData();
+
+  // ✅ 저장된 좌표 로드
+  const saved = JSON.parse(localStorage.getItem("vp_layout") || "null");
+  if (saved) {
+    data.nodes = data.nodes.map(n => ({
+      ...n,
+      x: saved[n.id]?.x ?? n.x,
+      y: saved[n.id]?.y ?? n.y,
+      fixed: true  // ✅ 아예 못 움직이게
+    }));
+  }
 
   networkNodes = new vis.DataSet(data.nodes);
   networkEdges = new vis.DataSet(data.edges);
 
   const options = {
-    physics: {
-      stabilization: { 
-        enabled: true,
-        iterations: 1000 // 초기 로딩 시 충분히 안정화시켜 덜 흔들리게 함
-      },
-      barnesHut: { 
-        gravitationalConstant: -8000, 
-        springLength: 140, 
-        springConstant: 0.03 
-      }
-    },
-    // 화면 이동(dragView)과 줌(zoomView)은 기본값이 true지만 명시적으로 적어둡니다.
-    interaction: { 
-      hover: true, 
-      dragNodes: true, 
-      dragView: true, 
-      zoomView: true 
-    },
-    nodes: { borderWidth: 2 },
-    edges: { smooth: true }
+    physics: saved ? false : { stabilization: { iterations: 1200 } }, // 저장됐으면 physics OFF
+    interaction: {
+      hover: true,
+      dragNodes: !saved,   // 저장됐으면 드래그도 막기
+      dragView: true,
+      zoomView: true
+    }
   };
 
   network = new vis.Network(container, { nodes: networkNodes, edges: networkEdges }, options);
 
-  // 클릭 이벤트 리스너 등록
+  // ✅ 처음 배치 완료 후 자동 저장하고 싶으면:
+  // network.once("stabilizationIterationsDone", () => saveLayout());
+
   network.on("click", (params) => {
-    if (params.nodes && params.nodes.length > 0) {
-      highlightPersonInNetwork(params.nodes[0]);
-    } else {
-      clearNetworkHighlight();
-    }
+    if (params.nodes?.length) highlightPersonInNetwork(params.nodes[0]);
+    else clearNetworkHighlight();
   });
 
-  // 렌더링 후 화면 맞춤
-  setTimeout(() => { network?.fit?.(); }, 100);
+  setTimeout(() => network?.fit?.(), 100);
 }
+
 
 function switchTab(tab, btn) { activeTab = tab; document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active")); if (btn) btn.classList.add("active"); const netWrap = document.getElementById("networkContainer"); const villageView = document.getElementById("villageView"); if (tab === "network") { if (netWrap) netWrap.style.display = "block"; if (villageView) villageView.style.display = "none"; renderNetwork(); } else { if (netWrap) netWrap.style.display = "none"; if (villageView) villageView.style.display = "grid"; renderVillage(); } }
 function renderVillage() {
@@ -1479,3 +1485,4 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
