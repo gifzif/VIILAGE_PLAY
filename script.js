@@ -780,15 +780,12 @@ function randomSocialEvent(a, b, entries, freeEntries) {
   const sA = relGet(a, b);
   const sB = relGet(b, a);
 
- 
+  // 극희박 파국 이벤트
   if ((sp === "lover" || sp === "married") && Math.random() < 0.00001) {
     if (sp === "married") divorce(a, b, entries);
     else breakUp(a, b, entries);
     return;
   }
-
-  const r = Math.random();
-
   if (sp === "coldwar") {
     if (Math.random() < 0.45) {
       setSpecial(a, b, null);
@@ -797,8 +794,9 @@ function randomSocialEvent(a, b, entries, freeEntries) {
       relAdd(b, a, 15);
       logPush(entries, `[화해] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 서로 사과하고 화해했다.`, "green");
       return;
+    }
   }
-  }
+
   const chem = calcChem(a.mbti, b.mbti);
   const deltaBase =
     chem >= 5 ? randInt(6, 12) :
@@ -1552,6 +1550,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
