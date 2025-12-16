@@ -174,7 +174,7 @@ function addMoney(char, delta) {
 function chance(p) {
   return Math.random() < p;
 }
-function helpSick(a, b, entries) {
+function careLowEP(a, b, entries) {
   if (b.sickDays <= 0) return false;
   if (relGet(a, b) < 20) return false;
   if (!canAct(a)) return false;
@@ -1635,6 +1635,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
