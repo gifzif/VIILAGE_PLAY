@@ -10,7 +10,7 @@ const MBTI_TYPES = [
 ];
 
 const JOBS = [
-  "광부","농부","요리사","교사","목수","사무직","상인","의사","쥬얼리상","개발자","무역가","알바생","요가강사","바리스타","디자이너","경찰","간호사"
+  "광부","농부","요리사","교사","목수","사무직","상인","의사","쥬얼리상","개발자","무역가","알바생","요가강사","바리스타","디자이너","경찰","간호사","빵집사장","꽃집사장","사진사","우체부","도서관사서","수의사","작가","음악가","정원사","어부","베이비시터","공무원"
 ];
 
 const WORDS = {
@@ -239,6 +239,21 @@ function tryFlirt(a, b, entries) {
   }
   return true;
 }
+function maybeWorkWarning(char, entries) {
+  const n = safeNum(char.skippedWorkDays, 0);
+  if (!char.job || char.job === "거지") return;
+
+  if (n === 3) {
+    logPush(entries, `📌 [주의] ${char.name}${getJosa(char.name,"은/는")} 결근이 잦아 눈치가 보인다…`, "normal");
+  }
+  if (n === 5) {
+
+    const fine = randInt(20, 60);
+    addMoney(char, -fine);
+    logPush(entries, `📌 [경고] ${char.name}${getJosa(char.name,"은/는")} 지각/결근 누적으로 일급(-${fine}원)이 깎였다...`, "normal");
+  }
+}
+
 
 function calcChem(m1, m2) {
   if (!compatibilityData[m1] || compatibilityData[m1][m2] == null) return 3;
@@ -312,8 +327,8 @@ function breakSpecial(a, b, entries, reasonLabel) {
   relAdd(a, b, -25);
   relAdd(b, a, -25);
 
-  const costA = randInt(40, 120);
-  const costB = randInt(40, 120);
+  const costA = randInt(500, 5000);
+  const costB = randInt(500, 5000);
   addMoney(a, -costA);
   addMoney(b, -costB);
 
@@ -355,10 +370,10 @@ function logPush(entries, text, kind) {
 }
 
 function logKindColor(kind) {
-  if (kind === "blue") return "#74b9ff";
+  if (kind === "blue")  return "#74b9ff";
   if (kind === "green") return "#00b894";
-  if (kind === "pink") return "#ff7675";
-  return "#dfe6e9";
+  if (kind === "pink")  return "#ff7675";
+  return "#b2bec3"; 
 }
 
 
@@ -388,11 +403,33 @@ function renderLogs(newEntries) {
     const e = newEntries[i];
     const div = document.createElement("div");
     div.className = "log-entry";
-    div.style.color = logKindColor(e.kind);
-    div.textContent = e.text;
+
+    const markColor = logKindColor(e.kind);
+
+    div.style.color = "#ffffff";      
+    div.style.display = "flex";
+    div.style.alignItems = "flex-start";
+    div.style.gap = "8px";
+
+    const marker = document.createElement("span");
+    marker.style.display = "inline-block";
+    marker.style.width = "6px";
+    marker.style.height = "1.2em";
+    marker.style.marginTop = "3px";
+    marker.style.borderRadius = "3px";
+    marker.style.backgroundColor = markColor;
+    marker.style.flexShrink = "0";
+
+    const text = document.createElement("span");
+    text.textContent = e.text;
+
+    div.appendChild(marker);
+    div.appendChild(text);
+
     container.insertBefore(div, container.firstChild);
   }
 }
+
 
 // =====================
 // UI / Character
@@ -456,7 +493,9 @@ function addCharacter() {
     beggarDays: 0,
     skippedWorkDays: 0,
     lastMain: "-",
-    lastFree: "-"
+    lastFree: "-",
+    diligence: randInt(1, 5)
+
   });
   
     console.log("added:", name, mbti);
@@ -488,7 +527,8 @@ function normalizeCharacter(c) {
   c.mind = safeNum(c.mind, 1);
   c.intel = safeNum(c.intel, 1);
   c.agi = safeNum(c.agi, 1);
-
+  c.diligence = safeNum(c.diligence, 3);
+  c.diligence = Math.max(1, Math.min(5, c.diligence));
   c.maxHp = Math.max(1, safeNum(c.maxHp, 60 + c.str * 20));
   c.maxEp = Math.max(1, safeNum(c.maxEp, 60 + c.mind * 20));
   if (c.hp == null) c.hp = c.maxHp;
@@ -609,6 +649,19 @@ function jobTier(job) {
   if (job === "알바생") return 1;
   if (job === "이장") return 3;
   if (job === "거지") return 0;
+  if (job === "수의사") return 4;
+  if (job === "공무원") return 3;
+  if (job === "도서관사서") return 2;
+  if (job === "우체부") return 2;
+  if (job === "빵집사장") return 3;
+  if (job === "꽃집사장") return 3;
+  if (job === "사진사") return 3;
+  if (job === "작가") return 2;
+  if (job === "음악가") return 2;
+  if (job === "정원사") return 2;
+  if (job === "어부") return 2;
+  if (job === "베이비시터") return 2;
+
   return 2;
 }
 
@@ -673,6 +726,22 @@ function workCosts(char) {
   if (char.job === "간호사") { ep += randInt(8, 16); hp += randInt(2, 6); }
   if (char.job === "경찰") { hp += randInt(6, 12); ep += randInt(5, 10); }
   if (char.job === "알바생") { hp += randInt(4, 10); ep += randInt(4, 10); }
+  if (char.job === "빵집사장") { hp += randInt(5, 10); ep += randInt(6, 12); }
+  if (char.job === "꽃집사장") { hp += randInt(2, 6);  ep += randInt(4, 9);  }
+  
+  if (char.job === "사진사")   { ep += randInt(6, 14); hp += randInt(1, 4);  }
+  if (char.job === "작가")     { ep += randInt(10, 18); hp += randInt(0, 3); }
+  if (char.job === "음악가")   { ep += randInt(8, 16);  hp += randInt(0, 3); }
+  
+  if (char.job === "도서관사서"){ ep += randInt(4, 9);  hp += randInt(0, 2); }
+  if (char.job === "우체부")   { hp += randInt(6, 12); ep += randInt(2, 6);  }
+  if (char.job === "공무원")   { ep += randInt(6, 12); hp += randInt(1, 3);  }
+  
+  if (char.job === "수의사")   { ep += randInt(10, 18); hp += randInt(2, 6); }
+  if (char.job === "정원사")   { hp += randInt(5, 10); ep += randInt(2, 5);  }
+  if (char.job === "어부")     { hp += randInt(7, 14); ep += randInt(2, 6);  }
+  if (char.job === "베이비시터"){ ep += randInt(7, 14); hp += randInt(2, 5); }
+
 
   if (char.job === "이장") {
     hp = Math.max(4, Math.floor(hp * 0.55));
@@ -712,6 +781,58 @@ function doVillagePrep(char, entries) {
   char.lastFree = "여가";
   logPush(entries, `[마을] ${char.name}${getJosa(char.name,"은/는")} ${pick(WORDS.villageWork)}. (HP -${hp}, EP -${ep})`, "normal");
   if (char.hp <= 0 || char.ep <= 0) setFaint(char, entries);
+}
+function jobAttendanceBias(job) {
+  // +면 출근 잘함, -면 땡땡이 느낌
+  if (job === "의사") return +0.18;
+  if (job === "간호사") return +0.12;
+  if (job === "경찰") return +0.10;
+  if (job === "교사") return +0.08;
+  if (job === "사무직") return +0.05;
+
+  if (job === "개발자") return -0.02;   // “재택/유연” 느낌
+  if (job === "디자이너") return -0.03;
+  if (job === "바리스타") return -0.04;
+  if (job === "요가강사") return -0.05;
+  if (job === "알바생") return -0.08;
+  if (job === "공무원") return +0.10;
+  if (job === "우체부") return +0.08;
+  if (job === "도서관사서") return +0.06;
+  if (job === "수의사") return +0.08;
+  
+  if (job === "작가") return -0.06;  
+  if (job === "음악가") return -0.05;
+  if (job === "사진사") return -0.03;
+  
+  if (job === "빵집사장") return +0.05; 
+  if (job === "꽃집사장") return +0.03;
+
+  return 0;
+}
+
+function skipWorkLazy(char, entries) {
+  if (!char || !canAct(char)) return false;
+  if (!char.job || char.job === "거지") return false;
+
+  // 결근하면 돈 못 벌고, 대신 체력/기분은 약간 회복되는 느낌
+  const gainHp = randInt(2, 7);
+  const gainEp = randInt(4, 10);
+
+  restoreHP(char, gainHp);
+  restoreEP(char, gainEp);
+
+  char.skippedWorkDays = safeNum(char.skippedWorkDays, 0) + 1;
+  char.lastMain = "땡땡이";
+  char.lastFree = "여가";
+
+  const lines = [
+    `[땡땡이] ${char.name}${getJosa(char.name,"은/는")} 귀찮아서 오늘은 일을 안 나갔다. (HP +${gainHp}, EP +${gainEp})`,
+    `[땡땡이] ${char.name}: "오늘은… 쉬자." 출근을 포기했다. (HP +${gainHp}, EP +${gainEp})`,
+    `[땡땡이] ${char.name}${getJosa(char.name,"은/는")} 이불의 승리로 결근했다. (HP +${gainHp}, EP +${gainEp})`,
+  ];
+  logPush(entries, pick(lines), "blue"); // 너 로그 시스템에 맞춰서 blue 추천
+
+  return true;
 }
 
 // =====================
@@ -759,43 +880,86 @@ function beggarStep(char, entries) {
 // Romance / Social
 // =====================
 function tryConfess(a, b, entries) {
-  const sp = getSpecialBetween(a, b);
-  if (sp === "married" || sp === "lover") return false;
+  const spAB = getSpecialBetween(a, b);
+  if (spAB === "married" || spAB === "lover") return false;
   if (!canAct(a) || !canAct(b)) return false;
 
   const score = relGet(a, b);
   const chem = calcChem(a.mbti, b.mbti);
   if (score < 55) return false;
 
-  const chemBonus = (chem - 3) * 0.06;
-  const chance = 0.35 + Math.min(0.35, score / 200) + chemBonus;
+  // ===== 여기부터 핵심 =====
+
+  const aHasPartner = !!getAnyPartnerId(a);
+  const bHasPartner = !!getAnyPartnerId(b);
+
+
+  let chance =
+    0.35 +
+    Math.min(0.35, score / 200) +
+    (chem - 3) * 0.06;
+
+
+  if (aHasPartner) chance *= 0.15;   // 85% 감소
+  if (bHasPartner) chance *= 0.15;   // 상대가 연애 중이면 거의 안 됨
+
+
+  chance = Math.max(0.03, chance);
+
 
   if (Math.random() < chance) {
-    forceSingleBeforeNewLove(a, entries);
-    forceSingleBeforeNewLove(b, entries);
+    if (aHasPartner) forceSingleBeforeNewLove(a, entries);
+    if (bHasPartner) forceSingleBeforeNewLove(b, entries);
 
     setSpecial(a, b, "lover");
     setSpecial(b, a, "lover");
+
     relAdd(a, b, 15, true);
     relAdd(b, a, 15, true);
 
     restoreEP(a, a.maxEp);
     restoreEP(b, b.maxEp);
 
-    logPush(entries, `[고백 성공] 💖 ${a.name}${getJosa(a.name,"은/는")} ${b.name}에게 고백했고, 연인이 되었다! (EP 풀충전)`, "pink");
-    return true;
-  } else {
-    relAdd(a, b, -8);
-    relAdd(b, a, -3);
-    if (Math.random() < 0.45) {
-      setSpecial(a, b, "coldwar");
-      setSpecial(b, a, "coldwar");
-      logPush(entries, `[냉전] 🔥 ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 어색해졌다...`, "normal");
-    }
-    logPush(entries, `[고백 실패] 💔 ${a.name}${getJosa(a.name,"은/는")} ${b.name}에게 차였다...`, "normal");
+    logPush(
+      entries,
+      `[고백 성공] 💖 ${a.name}${getJosa(a.name,"은/는")} ${b.name}에게 고백했고, 연인이 되었다!`,
+      "pink"
+    );
     return true;
   }
+
+  // ===== 실패 처리 =====
+  relAdd(a, b, -6);
+  relAdd(b, a, -2);
+
+  // 연애 중 실패는 "민망/거리감" 정도만
+  if (aHasPartner || bHasPartner) {
+    if (Math.random() < 0.4) {
+      setSpecial(a, b, "coldwar");
+      setSpecial(b, a, "coldwar");
+      logPush(
+        entries,
+        `[고백 실패] 😬 ${a.name}${getJosa(a.name,"은/는")} 타이밍이 아니란 걸 느꼈다… ${b.name}와(과) 조금 어색해졌다.`,
+        "normal"
+      );
+    } else {
+      logPush(
+        entries,
+        `[고백 실패] 😅 ${a.name}의 고백은 조용히 묻혔다.`,
+        "normal"
+      );
+    }
+  } else {
+    logPush(
+      entries,
+      `[고백 실패] 💔 ${a.name}${getJosa(a.name,"은/는")} ${b.name}에게 차였다...`,
+      "normal"
+    );
+  }
+
+  return true;
 }
+
 
 function tryMarriage(a, b, entries) {
   const sp = getSpecialBetween(a, b);
@@ -1350,6 +1514,8 @@ function renderVillage() {
         <div>정신 ${c.mind}</div>
         <div>지능 ${c.intel}</div>
         <div>민첩 ${c.agi}</div>
+        <div>성실 ${c.diligence}</div>
+
       </div>
       <div class="bar-group"><div class="bar-label">HP</div><div class="bar-track"><div class="bar-fill hp-fill" style="width:${hpPct}%"></div></div><div style="width:62px;text-align:right;color:#888;">${c.hp}/${c.maxHp}</div></div>
       <div class="bar-group"><div class="bar-label">EP</div><div class="bar-track"><div class="bar-fill ep-fill" style="width:${epPct}%"></div></div><div style="width:62px;text-align:right;color:#888;">${c.ep}/${c.maxEp}</div></div>
@@ -1521,12 +1687,8 @@ function nextDay() {
           return;
         }
 
-        if (Math.random() < 0.62) {
-          const did = doWork(c, entries);
-          if (!did) c.skippedWorkDays += 1;
-        } else {
-          c.skippedWorkDays += 1;
-        }
+        maybeWorkWarning(c, entries);
+
       });
 
       const canSocial = characters.filter(c => canAct(c) && c.beggarDays <= 0 && c.job !== "거지");
@@ -1579,6 +1741,7 @@ function nextDay() {
         }
 
         maybeBecomeBeggar(c);
+        maybeWorkWarning(c, entries);
       });
 
       const freePool = characters.filter(c => canAct(c) && c.beggarDays <= 0 && c.job !== "거지");
@@ -1639,6 +1802,7 @@ function nextDay() {
 
     logs = [...freeEntries.map(x => ({ day, ...x })), ...entries.map(x => ({ day, ...x })), ...logs];
     renderLogs([...entries, ...freeEntries]);
+    
 
     renderVillage();
     if (activeTab === "network") renderNetwork();
@@ -1666,6 +1830,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
