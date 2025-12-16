@@ -175,30 +175,27 @@ function chance(p) {
   return Math.random() < p;
 }
 function helpSick(a, b, entries) {
-  if (!canAct(a) || !canAct(b)) return false;
+  if (!canAct(a)) return false;          // a가 행동 가능해야 챙겨줌
+  if (b.sickDays <= 0) return false;     // b가 아플 때만
   if (a.beggarDays > 0 || b.beggarDays > 0) return false;
 
-  // b의 EP가 낮을 때만 발동
-  const maxEp = Math.max(1, safeNum(b.maxEp, 1));
-  const ratio = safeNum(b.ep, 0) / maxEp;
-  if (ratio > 0.25) return false; // 25% 이하일 때만
+  if (relGet(a, b) < 20) return false;   // 호감도 조건
 
-  // 호감도 조건 (원하는 기준으로 조절)
-  if (relGet(a, b) < 18) return false;
-
-  // 챙겨주기 비용/효과
-  const cost = randInt(5, 25);
+  const cost = randInt(10, 30);
   addMoney(a, -cost);
 
-  const heal = randInt(8, 22);
-  restoreEP(b, heal);
+  // 아픈 기간 1일 줄여주고, EP도 조금 회복
+  b.sickDays = Math.max(0, b.sickDays - 1);
+  const healEp = randInt(6, 14);
+  restoreEP(b, healEp);
 
-  relAdd(a, b, randInt(5, 9));
-  relAdd(b, a, randInt(2, 6));
+  relAdd(a, b, randInt(6, 10));
+  relAdd(b, a, randInt(3, 6));
 
-  logPush(entries, `🧃 ${a.name}${getJosa(a.name,"은/는")} 지친 ${b.name}${getJosa(b.name,"을/를")} 챙겨줬다. (EP +${heal})`, "green");
+  logPush(entries, `💊 ${a.name}${getJosa(a.name,"은/는")} 아픈 ${b.name}${getJosa(b.name,"을/를")} 챙겨줬다. (EP +${healEp})`, "green");
   return true;
 }
+
 function careLowEP(a, b, entries) {
   if (!canAct(a) || !canAct(b)) return false;
   if (a.beggarDays > 0 || b.beggarDays > 0) return false;
@@ -1669,6 +1666,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
