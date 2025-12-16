@@ -1476,7 +1476,15 @@ function nextDay() {
   }
 }
 
-window.onload = () => {
-  ensureMbtiOptions();
-  renderVillage();
-};
+
+window.nextDay = nextDay;
+window.addCharacter = addCharacter;
+window.removeCharacter = removeCharacter;
+window.saveData = saveData;
+window.loadData = loadData;
+window.saveLogText = saveLogText;
+window.switchTab = switchTab;
+window.closeModal = closeModal;
+window.openAffinityModal = openAffinityModal;
+
+
