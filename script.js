@@ -1060,78 +1060,177 @@ edges.push({
 
   return { nodes, edges };
 }
+// ==========================================
+// [수정됨] 네트워크 강조 기능 (흑백 처리 로직)
+// ==========================================
 function highlightPersonInNetwork(personId) {
   if (!network || !networkNodes || !networkEdges) return;
+
   personId = String(personId);
 
+  // 같은 사람을 다시 누르면 하이라이트 해제 (토글)
   if (highlightedPersonId === personId) {
     clearNetworkHighlight();
     return;
   }
   highlightedPersonId = personId;
 
-  const neighbors = new Set(network.getConnectedNodes(personId).map(String));
+  // 1. 활성화할 노드 찾기 (본인 + 이웃)
+  const connectedNodeIds = network.getConnectedNodes(personId);
+  const activeNodeSet = new Set([personId, ...connectedNodeIds.map(String)]);
 
-  // 노드 숨김/표시를 "한 번에" 업데이트
-  const nodeUpdates = networkNodes.get().map(n => {
-    const nid = String(n.id);
-    const visible = (nid === personId) || neighbors.has(nid);
-    return { id: n.id, hidden: !visible };
+  // 2. 모든 노드 업데이트 (활성: 컬러 / 비활성: 회색)
+  const allNodes = networkNodes.get();
+  const nodeUpdates = allNodes.map(n => {
+    // 캐릭터 정보 찾기
+    const c = characters.find(char => String(char.id) === String(n.id));
+    
+    // 활성화 대상인가?
+    if (activeNodeSet.has(String(n.id))) {
+      // 원래 색상으로 복구
+      const originalBg = (c && c.isMayor) ? "#fdcb6e" : "#dfe6e9";
+      return {
+        id: n.id,
+        color: { background: originalBg, border: "#636e72" },
+        font: { color: "#2d3436" },
+        opacity: 1
+      };
+    } else {
+      // 비활성 -> 흑백/흐림 처리
+      return {
+        id: n.id,
+        color: { background: "#f1f2f6", border: "#e0e0e0" }, // 아주 연한 회색 배경
+        font: { color: "#cccccc" }, // 글씨도 흐리게
+        opacity: 1
+      };
+    }
   });
   networkNodes.update(nodeUpdates);
 
-  // 엣지도 한 번에
-  const edgeUpdates = networkEdges.get().map(e => {
-    const visible = String(e.from) === personId || String(e.to) === personId;
-    return { id: e.id, hidden: !visible }; // ✅ e.id가 반드시 있어야 함!
+  // 3. 모든 엣지 업데이트 (본인과 연결된 선만 컬러)
+  const allEdges = networkEdges.get();
+  const edgeUpdates = allEdges.map(e => {
+    // 이 엣지가 선택된 사람과 직접 연결되어 있는가?
+    const isConnected = (String(e.from) === personId || String(e.to) === personId);
+
+    if (isConnected) {
+      // [컬러 복구 로직] 점수와 관계에 따라 색상 재계산
+      const a = characters.find(c => String(c.id) === String(e.from));
+      const b = characters.find(c => String(c.id) === String(e.to));
+      let color = "#b2bec3";
+      let width = 1;
+
+      if (a && b) {
+        const score = relGet(a, b);
+        const score2 = relGet(b, a);
+        const avg = Math.round((score + score2) / 2);
+        const sp = getSpecialBetween(a, b);
+
+        if (sp === "married" || sp === "lover") { color = "#ff7675"; width = 3; }
+        else if (sp === "coldwar") { color = "#fdcb6e"; width = 2; }
+        else if (avg >= 61) { color = "#0984e3"; width = 2; }
+        else if (avg >= 31) { color = "#00b894"; width = 2; }
+        else if (avg < 0) { color = "#636e72"; width = 2; }
+      }
+
+      return { 
+        id: e.id, 
+        color: { color: color, opacity: 1 }, 
+        width: width 
+      };
+
+    } else {
+      // [흑백 처리] 연결 안 된 선은 아주 연하게 처리
+      return { 
+        id: e.id, 
+        color: { color: "#dfe6e9", opacity: 0.05 }, 
+        width: 1 
+      };
+    }
   });
   networkEdges.update(edgeUpdates);
 }
 
+// 강조 해제 (원래대로 전체 복구)
 function clearNetworkHighlight() {
   if (!network || !networkNodes || !networkEdges) return;
   highlightedPersonId = null;
 
-  networkNodes.update(networkNodes.get().map(n => ({ id: n.id, hidden: false })));
-  networkEdges.update(networkEdges.get().map(e => ({ id: e.id, hidden: false })));
+  // 노드 색상 전체 복구
+  const allNodes = networkNodes.get();
+  const restoredNodes = allNodes.map(n => {
+    const c = characters.find(char => String(char.id) === String(n.id));
+    const originalBg = (c && c.isMayor) ? "#fdcb6e" : "#dfe6e9";
+    return {
+      id: n.id,
+      color: { background: originalBg, border: "#636e72" },
+      font: { color: "#2d3436" }
+    };
+  });
+  networkNodes.update(restoredNodes);
+
+  // 엣지 색상 전체 복구
+  const allEdges = networkEdges.get();
+  const restoredEdges = allEdges.map(e => {
+      const a = characters.find(c => String(c.id) === String(e.from));
+      const b = characters.find(c => String(c.id) === String(e.to));
+      let color = "#b2bec3";
+      let width = 1;
+      if (a && b) {
+        const score = relGet(a, b);
+        const score2 = relGet(b, a);
+        const avg = Math.round((score + score2) / 2);
+        const sp = getSpecialBetween(a, b);
+        if (sp === "married" || sp === "lover") { color = "#ff7675"; width = 3; }
+        else if (sp === "coldwar") { color = "#fdcb6e"; width = 2; }
+        else if (avg >= 61) { color = "#0984e3"; width = 2; }
+        else if (avg >= 31) { color = "#00b894"; width = 2; }
+        else if (avg < 0) { color = "#636e72"; width = 2; }
+      }
+      return { id: e.id, color: { color: color, opacity: 1 }, width: width };
+  });
+  networkEdges.update(restoredEdges);
 }
 
-
-function switchTab(tab, btn) {
-  activeTab = tab;
-
-  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-  if (btn) btn.classList.add("active");
+function renderNetwork() {
+  const container = document.getElementById("networkView");
+  if (!container) return;
 
   const netWrap = document.getElementById("networkContainer");
   const villageView = document.getElementById("villageView");
+  if (netWrap) netWrap.style.display = "block";
+  if (villageView) villageView.style.display = "none";
 
-  if (tab === "network") {
-    if (netWrap) netWrap.style.display = "block";
-    if (villageView) villageView.style.display = "none";
-    renderNetwork();
-  } else {
-    if (netWrap) netWrap.style.display = "none";
-    if (villageView) villageView.style.display = "grid";
-    renderVillage();
-  }
+  const data = buildNetworkData();
+
+  networkNodes = new vis.DataSet(data.nodes);
+  networkEdges = new vis.DataSet(data.edges);
+
+  const options = {
+    physics: {
+      stabilization: { iterations: 120 },
+      barnesHut: { gravitationalConstant: -8000, springLength: 140, springConstant: 0.03 }
+    },
+    interaction: { hover: true, dragNodes: true },
+    nodes: { borderWidth: 2 },
+    edges: { smooth: true }
+  };
+
+  network = new vis.Network(container, { nodes: networkNodes, edges: networkEdges }, options);
+
+  // 클릭 이벤트 리스너 등록
+  network.on("click", (params) => {
+    if (params.nodes && params.nodes.length > 0) {
+      // 노드(사람) 클릭 시 강조 기능 실행
+      highlightPersonInNetwork(params.nodes[0]);
+    } else {
+      // 빈 공간 클릭 시 강조 해제
+      clearNetworkHighlight();
+    }
+  });
+
+  setTimeout(() => { network?.fit?.(); network?.redraw?.(); }, 0);
 }
-
-function renderVillage() {
-  const view = document.getElementById("villageView");
-  const dayEl = document.getElementById("dayDisplay");
-  if (dayEl) dayEl.textContent = String(day);
-  if (!view) return;
-
-  view.innerHTML = "";
-
-  if (characters.length === 0) {
-    const empty = document.createElement("div");
-    empty.style.color = "#888";
-    empty.textContent = "아직 주민이 없습니다. 입주 버튼으로 추가하세요.";
-    view.appendChild(empty);
-    return;
-  }
 
   characters.forEach(c => {
     normalizeCharacter(c);
@@ -1480,6 +1579,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
