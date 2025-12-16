@@ -1608,7 +1608,7 @@ function nextDay() {
     selectMayorAtDay10(entries);
 
     logs = [...freeEntries.map(x => ({ day, ...x })), ...entries.map(x => ({ day, ...x })), ...logs];
-    renderLogs([ ...freeEntries, ...entries]);
+    renderLogs([...entries, ...freeEntries]);
     renderVillage();
     if (activeTab === "network") renderNetwork();
 
@@ -1635,6 +1635,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
