@@ -216,6 +216,88 @@
         .val-plus { color: #00b894; font-weight: bold; }
         .val-minus { color: #d63031; font-weight: bold; }
         .val-zero { color: #b2bec3; }
+
+       
+@media (max-width: 900px) {
+  body {
+    height: auto;
+    overflow: auto;
+    padding: 12px;
+  }
+
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 0;
+  }
+
+  .main-container {
+    flex-direction: column;
+    gap: 12px;
+    overflow: visible;
+  }
+
+  .left-panel {
+    flex: none;
+    min-width: 0;
+  }
+
+  .controls {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .controls input,
+  .controls select,
+  .controls button {
+    height: 42px;
+  }
+
+
+  .tabs {
+    width: 100%;
+    margin-left: 0;
+    gap: 8px;
+  }
+  .tab-btn {
+    font-size: 1rem;
+  }
+
+
+  .village-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+
+  .log-panel {
+    min-width: 0;
+    flex: none;
+    height: auto;
+    max-height: none;
+  }
+
+  .log-content {
+    max-height: 38vh;
+    overflow-y: auto;
+  }
+
+
+  #networkContainer,
+  #networkView {
+    height: 55vh;
+  }
+}
+
+@media (max-width: 420px) {
+
+  #nameInput { width: 100% !important; }
+  #mbtiInput { width: 100%; }
+  .btn-add, .btn-next { width: 100%; }
+  .controls > div[style*="width: 1px"] { display: none; }
+}
+
     </style>
 </head>
 <body>
@@ -284,4 +366,5 @@
 
 <script src="script.js"></script>
 </body>
+
 </html>
