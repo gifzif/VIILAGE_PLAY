@@ -408,22 +408,32 @@ function workCosts(char) {
   const str = safeNum(char.str, 1);
   const mind = safeNum(char.mind, 1);
 
-  let hp = randInt(10, 18);
-  let ep = randInt(12, 22);
+  let hp = randInt(14, 50);
+  let ep = randInt(14, 40);
 
-  hp = Math.max(5, Math.floor(hp * (1.25 - str * 0.12)));
-  ep = Math.max(7, Math.floor(ep * (1.25 - mind * 0.12)));
+  hp = Math.max(8, Math.floor(hp * (1.35 - str * 0.12)));
+  ep = Math.max(8, Math.floor(ep * (1.35 - mind * 0.12)));
 
-  if (char.job === "광부") hp += 7;
-  if (char.job === "농부") hp += 5;
-  if (char.job === "목수") hp += 5;
-  if (char.job === "의사") ep += 7;
-  if (char.job === "개발자") ep += 7;
+  if (char.job === "광부") hp += randInt(10, 18), ep += randInt(2, 6);
+  if (char.job === "농부") hp += randInt(7, 14), ep += randInt(2, 5);
+  if (char.job === "목수") hp += randInt(6, 12), ep += randInt(3, 7);
 
-  if (char.job === "이장") { hp = Math.max(3, Math.floor(hp * 0.6)); ep = Math.max(4, Math.floor(ep * 0.6)); }
+  if (char.job === "의사") ep += randInt(10, 18), hp += randInt(2, 6);
+  if (char.job === "개발자") ep += randInt(10, 20), hp += randInt(1, 5);
+  if (char.job === "사무직") ep += randInt(6, 12);
+  if (char.job === "교사") ep += randInt(6, 12);
+  if (char.job === "간호사") ep += randInt(8, 16), hp += randInt(2, 6);
+  if (char.job === "경찰") hp += randInt(6, 12), ep += randInt(5, 10);
+  if (char.job === "알바생") hp += randInt(4, 10), ep += randInt(4, 10);
+
+  if (char.job === "이장") {
+    hp = Math.max(4, Math.floor(hp * 0.55));
+    ep = Math.max(4, Math.floor(ep * 0.55));
+  }
 
   return { hp, ep };
 }
+
 
 function doWork(char, entries) {
   if (!char.job || char.job === "거지") return false;
@@ -550,7 +560,11 @@ function tryDate(a, b, freeEntries) {
 }
 
 function randomSocialEvent(a, b, entries, freeEntries) {
+  
   if (!canAct(a) || !canAct(b)) return;
+  consumeEP(a, randInt(1, 4));
+  consumeEP(b, randInt(1, 4));
+
 
   const sp = getSpecialBetween(a, b);
   const sA = relGet(a, b);
@@ -641,8 +655,8 @@ function doTravelOrRest(char, freeEntries) {
   if (mode < 0.55) {
     const spend = randInt(10, 40);
     addMoney(char, -spend);
-    restoreHP(char, randInt(10, 28) + spend);
-    restoreEP(char, randInt(12, 30) + spend);
+    restoreHP(char, randInt(5,20) + spend);
+    restoreEP(char, randInt(1,15) + spend);
     char.lastFree = "여가";
     logPush(freeEntries, `[여가] ${char.name}${getJosa(char.name,"은/는")} ${pick(WORDS.leisure)}로 쉬었다. (-${spend}원)`, "blue");
     return true;
@@ -1197,3 +1211,4 @@ window.onload = () => {
   ensureMbtiOptions();
   renderVillage();
 };
+
