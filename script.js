@@ -1127,7 +1127,7 @@ function addCharacter(){
     stats: st,
     hp: maxHP(st),
     ep: maxEP(st),
-    money: randInt(120, 420),
+    money: 100,
     job: null,
     relationships: {},
     specialRelations: {},
