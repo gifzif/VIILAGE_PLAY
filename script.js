@@ -1,3 +1,7 @@
+// =========================
+//  VILLAGE PLAY - script.js
+// =========================
+
 const MBTI_TYPES = [
   "ISTJ","ISFJ","INFJ","INTJ",
   "ISTP","ISFP","INFP","INTP",
@@ -45,14 +49,20 @@ let network = null;
 let mayorSelected = false;
 let mayorId = null;
 
+// =====================
+// Special Day System
+// =====================
 const YEAR_DAYS = 365;
 
-// 1일차 -> 1, 365일차 -> 365, 366일차 -> 1 ...
+function safeNum(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function getDayOfYear(simDay) {
   return ((safeNum(simDay, 1) - 1) % YEAR_DAYS) + 1;
 }
 
-// (원하면 보기 좋게 월/일 문자열도)
 function dayOfYearToMonthDay(doy) {
   const monthDays = [31,28,31,30,31,30,31,31,30,31,30,31];
   let m = 1, d = doy;
@@ -63,44 +73,36 @@ function dayOfYearToMonthDay(doy) {
   return `${m}월 ${d}일`;
 }
 
-function applySpecialDayEvents(day, entries) {
-  const doy = getDayOfYear(day);
+function applySpecialDayEvents(simDay, entries) {
+  const doy = getDayOfYear(simDay);
 
-  // nextDay 로직에 “오늘은 돈 못 번다” 같은 플래그 전달용
   const ctx = {
-    blockWork: false,        // true면 오늘 돈벌기 금지
-    forceRestOnly: false,    // true면 오늘은 전원 휴식/여가만
+    blockWork: false,
+    forceRestOnly: false,
   };
 
-  // ====== (1) 크리스마스: 12/25 = dayOfYear 359 (윤년 제외 기준)
+  // 12/25 = 359 (윤년 제외)
   if (doy === 359) {
     logPush(entries, `🎄 [크리스마스] 오늘은 ${dayOfYearToMonthDay(doy)}!`, "pink");
-
     characters.forEach(c => {
       if (!canAct(c)) return;
-
       const partnerId = getAnyPartnerId(c);
       if (partnerId) {
-        // 연인/결혼이면 EP 풀충
         restoreEP(c, c.maxEp);
         logPush(entries, `🎁 ${c.name}${getJosa(c.name,"은/는")} 연인이 있어서 EP가 풀충전됐다!`, "pink");
       } else {
-        // 솔로면 EP 반타작 (정신력 “반타작”)
         c.ep = Math.floor(safeNum(c.ep, 0) * 0.5);
         logPush(entries, `🥲 ${c.name}${getJosa(c.name,"은/는")} 솔로라서 EP가 반으로 줄었다...`, "normal");
       }
     });
   }
 
-  // ====== (2) 부활절(예시): 날짜는 네가 정하면 됨.
-  // 일단 "100번째 날"로 예시 (원하면 다른 숫자로 바꿔)
+  // 부활절(예시): 100번째 날
   if (doy === 100) {
     logPush(entries, `🐣 [부활절] 달걀 찾기 이벤트!`, "green");
 
-    // 각자 달걀 발견량 랜덤
     const found = characters.map(c => {
       if (!canAct(c)) return { id: c.id, name: c.name, n: 0 };
-      // 발견량: 0~5개 (원하면 바꿔)
       return { id: c.id, name: c.name, n: randInt(0, 5) };
     });
 
@@ -110,7 +112,6 @@ function applySpecialDayEvents(day, entries) {
     if (winners.length === 0) {
       logPush(entries, `🥚 아무도 달걀을 못 찾았다…`, "normal");
     } else {
-      // 우승자 +1000, 나머지 -1000
       characters.forEach(c => {
         if (!canAct(c)) return;
         if (winners.includes(c.id)) addMoney(c, +1000);
@@ -123,7 +124,7 @@ function applySpecialDayEvents(day, entries) {
     }
   }
 
-  // ====== (3) 5월 5일(가정의 달) = dayOfYear 125
+  // 5/5 = 125
   if (doy === 125) {
     logPush(entries, `👨‍👩‍👧 [가정의 달] 오늘은 ${dayOfYearToMonthDay(doy)}. 돈벌이를 못 한다! 전원 휴식!`, "blue");
     ctx.blockWork = true;
@@ -133,12 +134,9 @@ function applySpecialDayEvents(day, entries) {
   return ctx;
 }
 
-
-function safeNum(v, fallback = 0) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
-}
-
+// =====================
+// Utils
+// =====================
 function randInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -176,21 +174,73 @@ function calcChem(m1, m2) {
   return compatibilityData[m1][m2];
 }
 
+// =====================
+// Relationship System
+// =====================
+function getSpecialBetween(a, b) {
+  const s1 = a?.specialRelations?.[b?.id];
+  const s2 = b?.specialRelations?.[a?.id];
+  if (s1 === "married" || s2 === "married") return "married";
+  if (s1 === "lover" || s2 === "lover") return "lover";
+  if (s1 === "coldwar" || s2 === "coldwar") return "coldwar";
+  if (s1 === "cut" || s2 === "cut") return "cut";
+  return null;
+}
+
+function setSpecial(a, b, status) {
+  if (!a.specialRelations) a.specialRelations = {};
+  if (status == null) delete a.specialRelations[b.id];
+  else a.specialRelations[b.id] = status;
+}
+
+function getPartnerId(char, status /* "lover"|"married" */) {
+  const rel = char?.specialRelations || {};
+  for (const [id, st] of Object.entries(rel)) {
+    if (st === status) return id;
+  }
+  return null;
+}
+
+function getAnyPartnerId(char) {
+  return getPartnerId(char, "married") || getPartnerId(char, "lover");
+}
+
+function relGet(a, b) {
+  return safeNum(a.relationships?.[b.id], 0);
+}
+
+function relSet(a, b, v) {
+  if (!a.relationships) a.relationships = {};
+  a.relationships[b.id] = v;
+}
+
+function relAdd(a, b, delta, bondedCap = false) {
+  const old = relGet(a, b);
+  let v = old + safeNum(delta, 0);
+
+  const sp = getSpecialBetween(a, b);
+  const isBonded = sp === "lover" || sp === "married" || bondedCap;
+  const maxVal = isBonded ? 200 : 100;
+
+  if (v > maxVal) v = maxVal;
+  if (v < -100) v = -100;
+
+  relSet(a, b, v);
+}
+
+// 1인1연애: 새 연애/결혼 전에 기존 관계 정리
 function breakSpecial(a, b, entries, reasonLabel) {
   if (!a || !b) return false;
 
   const sp = getSpecialBetween(a, b);
   if (sp !== "lover" && sp !== "married") return false;
 
-  // 관계 해제
   setSpecial(a, b, null);
   setSpecial(b, a, null);
 
-  // 후폭풍(원하면 수치 조절)
   relAdd(a, b, -25);
   relAdd(b, a, -25);
 
-  // 비용/소모(원하면 조절)
   const costA = randInt(40, 120);
   const costB = randInt(40, 120);
   addMoney(a, -costA);
@@ -226,60 +276,9 @@ function forceSingleBeforeNewLove(a, entries) {
   return false;
 }
 
-
-
-function getSpecialBetween(a, b) {
-  const s1 = a?.specialRelations?.[b?.id];
-  const s2 = b?.specialRelations?.[a?.id];
-  if (s1 === "married" || s2 === "married") return "married";
-  if (s1 === "lover" || s2 === "lover") return "lover";
-  if (s1 === "coldwar" || s2 === "coldwar") return "coldwar";
-  if (s1 === "cut" || s2 === "cut") return "cut";
-  return null;
-}
-
-function getPartnerId(char, status /* "lover"|"married" */) {
-  const rel = char?.specialRelations || {};
-  for (const [id, st] of Object.entries(rel)) {
-    if (st === status) return id;
-  }
-  return null;
-}
-
-function getAnyPartnerId(char) {
-  return getPartnerId(char, "married") || getPartnerId(char, "lover");
-}
-
-
-function setSpecial(a, b, status) {
-  if (!a.specialRelations) a.specialRelations = {};
-  if (status == null) delete a.specialRelations[b.id];
-  else a.specialRelations[b.id] = status;
-}
-
-function relGet(a, b) {
-  return safeNum(a.relationships?.[b.id], 0);
-}
-
-function relSet(a, b, v) {
-  if (!a.relationships) a.relationships = {};
-  a.relationships[b.id] = v;
-}
-
-function relAdd(a, b, delta, bondedCap = false) {
-  const old = relGet(a, b);
-  let v = old + safeNum(delta, 0);
-
-  const sp = getSpecialBetween(a, b);
-  const isBonded = sp === "lover" || sp === "married" || bondedCap;
-  const maxVal = isBonded ? 200 : 100;
-
-  if (v > maxVal) v = maxVal;
-  if (v < -100) v = -100;
-
-  relSet(a, b, v);
-}
-
+// =====================
+// Logging
+// =====================
 function logPush(entries, text, kind) {
   entries.push({ text, kind });
 }
@@ -310,6 +309,9 @@ function renderLogs(newEntries) {
   }
 }
 
+// =====================
+// UI / Character
+// =====================
 function ensureMbtiOptions() {
   const sel = document.getElementById("mbtiInput");
   if (!sel) return;
@@ -385,6 +387,116 @@ function removeCharacter(id) {
   if (activeTab === "network") renderNetwork();
 }
 
+function normalizeCharacter(c) {
+  c.money = safeNum(c.money, 0);
+
+  c.str = safeNum(c.str, 1);
+  c.mind = safeNum(c.mind, 1);
+  c.intel = safeNum(c.intel, 1);
+  c.agi = safeNum(c.agi, 1);
+
+  c.maxHp = Math.max(1, safeNum(c.maxHp, 60 + c.str * 20));
+  c.maxEp = Math.max(1, safeNum(c.maxEp, 60 + c.mind * 20));
+
+  // ✅ hp/ep를 "0으로 리셋"하지 않게: undefined일 때만 fallback max로
+  if (c.hp == null) c.hp = c.maxHp;
+  if (c.ep == null) c.ep = c.maxEp;
+
+  c.hp = Math.min(c.maxHp, Math.max(0, safeNum(c.hp, 0)));
+  c.ep = Math.min(c.maxEp, Math.max(0, safeNum(c.ep, 0)));
+
+  c.relationships = c.relationships || {};
+  c.specialRelations = c.specialRelations || {};
+
+  c.sickDays = safeNum(c.sickDays, 0);
+  c.faintDays = safeNum(c.faintDays, 0);
+  c.beggarDays = safeNum(c.beggarDays, 0);
+  c.skippedWorkDays = safeNum(c.skippedWorkDays, 0);
+
+  c.lastMain = c.lastMain || "-";
+  c.lastFree = c.lastFree || "-";
+  c.dayJoined = safeNum(c.dayJoined, 1);
+  c.isMayor = !!c.isMayor;
+}
+
+// =====================
+// Status / HP EP
+// =====================
+function consumeHP(char, amount) {
+  char.hp = Math.max(0, safeNum(char.hp, 0) - safeNum(amount, 0));
+}
+
+function consumeEP(char, amount) {
+  char.ep = Math.max(0, safeNum(char.ep, 0) - safeNum(amount, 0));
+}
+
+function restoreHP(char, amount) {
+  const max = safeNum(char.maxHp, 100);
+  char.hp = Math.min(max, safeNum(char.hp, 0) + safeNum(amount, 0));
+}
+
+function restoreEP(char, amount) {
+  const max = safeNum(char.maxEp, 100);
+  char.ep = Math.min(max, safeNum(char.ep, 0) + safeNum(amount, 0));
+}
+
+function canAct(char) {
+  if (char.sickDays > 0) return false;
+  if (char.faintDays > 0) return false;
+  return true;
+}
+
+function freeTimeDivider(entries) {
+  logPush(entries, "— 자유시간 —", "blue");
+}
+
+function setFaint(char, entries) {
+  char.faintDays = 3;
+  const loss = randInt(120, 220);
+  addMoney(char, -loss);
+  char.lastMain = "기절";
+  char.lastFree = "-";
+  logPush(entries, `[기절] ${char.name}${getJosa(char.name,"은/는")} 쓰러져 3일 동안 일을 못 한다... (치료비 -${loss}원)`, "normal");
+}
+
+function startSick(char, entries) {
+  char.sickDays = randInt(1, 3);
+  logPush(entries, `[컨디션] ${char.name}${getJosa(char.name,"은/는")} 아파서 ${char.sickDays}일 동안 쉬어야 한다.`, "normal");
+}
+
+function tickStatus(char, entries) {
+  if (char.faintDays > 0) {
+    char.faintDays -= 1;
+    const loss = randInt(30, 60);
+    addMoney(char, -loss);
+    logPush(entries, `[회복중] ${char.name}${getJosa(char.name,"은/는")} 기절 후 회복 중... (생활비 -${loss}원)`, "normal");
+    if (char.faintDays === 0) {
+      restoreHP(char, Math.floor(char.maxHp * 0.6));
+      restoreEP(char, Math.floor(char.maxEp * 0.6));
+      logPush(entries, `[회복] ${char.name}${getJosa(char.name,"은/는")} 다시 움직일 수 있게 됐다.`, "normal");
+    }
+    return;
+  }
+
+  if (char.sickDays > 0) {
+    char.sickDays -= 1;
+    const loss = randInt(15, 35);
+    addMoney(char, -loss);
+    logPush(entries, `[아픔] ${char.name}${getJosa(char.name,"은/는")} 몸이 안 좋아 쉬었다. (약값 -${loss}원)`, "normal");
+    if (char.sickDays === 0) {
+      logPush(entries, `[회복] ${char.name}${getJosa(char.name,"은/는")} 컨디션이 돌아왔다.`, "normal");
+    }
+  }
+}
+
+function maybeGetSick(char, entries) {
+  if (!canAct(char)) return;
+  if (Math.random() < 0.02) startSick(char, entries);
+}
+
+// =====================
+// Jobs / Work
+// =====================
 function jobTier(job) {
   if (job === "의사") return 5;
   if (job === "개발자") return 4;
@@ -434,78 +546,85 @@ function maybeAssignJobs(entries) {
   }
 }
 
-function freeTimeDivider(entries) {
-  logPush(entries, "— 자유시간 —", "blue");
+function workIncome(char) {
+  const tier = jobTier(char.job);
+  const intel = safeNum(char.intel, 1);
+  const agi = safeNum(char.agi, 1);
+
+  const maxEp = Math.max(1, safeNum(char.maxEp, 1));
+  const epRatio = Math.max(0, Math.min(1, safeNum(char.ep, 0) / maxEp));
+
+  const base = 18 + tier * 22;
+  const skill = (intel * 0.65 + agi * 0.35);
+  const earn = Math.floor(base * skill * (0.55 + epRatio * 0.65));
+  return Math.max(0, earn);
 }
 
-function setFaint(char, entries) {
-  char.faintDays = 3;
-  const loss = randInt(120, 220);
-  addMoney(char, -loss);
-  char.lastMain = "기절";
-  char.lastFree = "-";
-  logPush(entries, `[기절] ${char.name}${getJosa(char.name,"은/는")} 쓰러져 3일 동안 일을 못 한다... (치료비 -${loss}원)`, "normal");
+function workCosts(char) {
+  const str = safeNum(char.str, 1);
+  const mind = safeNum(char.mind, 1);
+
+  let hp = randInt(14, 50);
+  let ep = randInt(14, 40);
+
+  hp = Math.max(8, Math.floor(hp * (1.35 - str * 0.12)));
+  ep = Math.max(8, Math.floor(ep * (1.35 - mind * 0.12)));
+
+  if (char.job === "광부") { hp += randInt(10, 18); ep += randInt(2, 6); }
+  if (char.job === "농부") { hp += randInt(7, 14); ep += randInt(2, 5); }
+  if (char.job === "목수") { hp += randInt(6, 12); ep += randInt(3, 7); }
+
+  if (char.job === "의사") { ep += randInt(10, 18); hp += randInt(2, 6); }
+  if (char.job === "개발자") { ep += randInt(10, 20); hp += randInt(1, 5); }
+  if (char.job === "사무직") ep += randInt(6, 12);
+  if (char.job === "교사") ep += randInt(6, 12);
+  if (char.job === "간호사") { ep += randInt(8, 16); hp += randInt(2, 6); }
+  if (char.job === "경찰") { hp += randInt(6, 12); ep += randInt(5, 10); }
+  if (char.job === "알바생") { hp += randInt(4, 10); ep += randInt(4, 10); }
+
+  if (char.job === "이장") {
+    hp = Math.max(4, Math.floor(hp * 0.55));
+    ep = Math.max(4, Math.floor(ep * 0.55));
+  }
+
+  return { hp, ep };
 }
 
-function consumeHP(char, amount) {
-  char.hp = Math.max(0, safeNum(char.hp, 0) - safeNum(amount, 0));
-}
+function doWork(char, entries) {
+  if (!char.job || char.job === "거지") return false;
+  if (!canAct(char)) return false;
 
-function consumeEP(char, amount) {
-  char.ep = Math.max(0, safeNum(char.ep, 0) - safeNum(amount, 0));
-}
+  const income = workIncome(char);
+  const c = workCosts(char);
 
-function restoreHP(char, amount) {
-  const max = safeNum(char.maxHp, 100);
-  char.hp = Math.min(max, safeNum(char.hp, 0) + safeNum(amount, 0));
-}
+  consumeHP(char, c.hp);
+  consumeEP(char, c.ep);
+  addMoney(char, +income);
 
-function restoreEP(char, amount) {
-  const max = safeNum(char.maxEp, 100);
-  char.ep = Math.min(max, safeNum(char.ep, 0) + safeNum(amount, 0));
-}
+  char.lastMain = "돈벌기";
+  char.lastFree = "여가";
 
-function canAct(char) {
-  if (char.sickDays > 0) return false;
-  if (char.faintDays > 0) return false;
+  logPush(entries, `[돈벌기] ${char.name}${getJosa(char.name,"은/는")} ${char.job}로 일해 ${income}원을 벌었다. (HP -${c.hp}, EP -${c.ep})`, "normal");
+
+  if (char.hp <= 0 || char.ep <= 0) setFaint(char, entries);
   return true;
 }
 
-function startSick(char, entries) {
-  char.sickDays = randInt(1, 3);
-  logPush(entries, `[컨디션] ${char.name}${getJosa(char.name,"은/는")} 아파서 ${char.sickDays}일 동안 쉬어야 한다.`, "normal");
-}
-
-function tickStatus(char, entries) {
-  if (char.faintDays > 0) {
-    char.faintDays -= 1;
-    const loss = randInt(30, 60);
-    addMoney(char, -loss);
-    logPush(entries, `[회복중] ${char.name}${getJosa(char.name,"은/는")} 기절 후 회복 중... (생활비 -${loss}원)`, "normal");
-    if (char.faintDays === 0) {
-      restoreHP(char, Math.floor(char.maxHp * 0.6));
-      restoreEP(char, Math.floor(char.maxEp * 0.6));
-      logPush(entries, `[회복] ${char.name}${getJosa(char.name,"은/는")} 다시 움직일 수 있게 됐다.`, "normal");
-    }
-    return;
-  }
-
-  if (char.sickDays > 0) {
-    char.sickDays -= 1;
-    const loss = randInt(15, 35);
-    addMoney(char, -loss);
-    logPush(entries, `[아픔] ${char.name}${getJosa(char.name,"은/는")} 몸이 안 좋아 쉬었다. (약값 -${loss}원)`, "normal");
-    if (char.sickDays === 0) {
-      logPush(entries, `[회복] ${char.name}${getJosa(char.name,"은/는")} 컨디션이 돌아왔다.`, "normal");
-    }
-  }
-}
-
-function maybeGetSick(char, entries) {
+function doVillagePrep(char, entries) {
   if (!canAct(char)) return;
-  if (Math.random() < 0.02) startSick(char, entries);
+  const hp = randInt(5, 12);
+  const ep = randInt(5, 12);
+  consumeHP(char, hp);
+  consumeEP(char, ep);
+  char.lastMain = "마을 정리";
+  char.lastFree = "여가";
+  logPush(entries, `[마을] ${char.name}${getJosa(char.name,"은/는")} ${pick(WORDS.villageWork)}. (HP -${hp}, EP -${ep})`, "normal");
+  if (char.hp <= 0 || char.ep <= 0) setFaint(char, entries);
 }
 
+// =====================
+// Beggar (optional)
+// =====================
 function isBroke(char) {
   return safeNum(char.money, 0) <= 0;
 }
@@ -544,83 +663,9 @@ function beggarStep(char, entries) {
   }
 }
 
-function workIncome(char) {
-  const tier = jobTier(char.job);
-  const intel = safeNum(char.intel, 1);
-  const agi = safeNum(char.agi, 1);
-
-  const maxEp = Math.max(1, safeNum(char.maxEp, 1));
-  const epRatio = Math.max(0, Math.min(1, safeNum(char.ep, 0) / maxEp));
-
-  const base = 18 + tier * 22;
-  const skill = (intel * 0.65 + agi * 0.35);
-  const earn = Math.floor(base * skill * (0.55 + epRatio * 0.65));
-  return Math.max(0, earn);
-}
-
-function workCosts(char) {
-  const str = safeNum(char.str, 1);
-  const mind = safeNum(char.mind, 1);
-
-  let hp = randInt(14, 50);
-  let ep = randInt(14, 40);
-
-  hp = Math.max(8, Math.floor(hp * (1.35 - str * 0.12)));
-  ep = Math.max(8, Math.floor(ep * (1.35 - mind * 0.12)));
-
-  if (char.job === "광부") hp += randInt(10, 18), ep += randInt(2, 6);
-  if (char.job === "농부") hp += randInt(7, 14), ep += randInt(2, 5);
-  if (char.job === "목수") hp += randInt(6, 12), ep += randInt(3, 7);
-
-  if (char.job === "의사") ep += randInt(10, 18), hp += randInt(2, 6);
-  if (char.job === "개발자") ep += randInt(10, 20), hp += randInt(1, 5);
-  if (char.job === "사무직") ep += randInt(6, 12);
-  if (char.job === "교사") ep += randInt(6, 12);
-  if (char.job === "간호사") ep += randInt(8, 16), hp += randInt(2, 6);
-  if (char.job === "경찰") hp += randInt(6, 12), ep += randInt(5, 10);
-  if (char.job === "알바생") hp += randInt(4, 10), ep += randInt(4, 10);
-
-  if (char.job === "이장") {
-    hp = Math.max(4, Math.floor(hp * 0.55));
-    ep = Math.max(4, Math.floor(ep * 0.55));
-  }
-
-  return { hp, ep };
-}
-
-
-function doWork(char, entries) {
-  if (!char.job || char.job === "거지") return false;
-  if (!canAct(char)) return false;
-
-  const income = workIncome(char);
-  const c = workCosts(char);
-
-  consumeHP(char, c.hp);
-  consumeEP(char, c.ep);
-  addMoney(char, +income);
-
-  char.lastMain = "돈벌기";
-  char.lastFree = "여가";
-
-  logPush(entries, `[돈벌기] ${char.name}${getJosa(char.name,"은/는")} ${char.job}로 일해 ${income}원을 벌었다. (HP -${c.hp}, EP -${c.ep})`, "normal");
-
-  if (char.hp <= 0 || char.ep <= 0) setFaint(char, entries);
-  return true;
-}
-
-function doVillagePrep(char, entries) {
-  if (!canAct(char)) return;
-  const hp = randInt(5, 12);
-  const ep = randInt(5, 12);
-  consumeHP(char, hp);
-  consumeEP(char, ep);
-  char.lastMain = "마을 정리";
-  char.lastFree = "여가";
-  logPush(entries, `[마을] ${char.name}${getJosa(char.name,"은/는")} ${pick(WORDS.villageWork)}. (HP -${hp}, EP -${ep})`, "normal");
-  if (char.hp <= 0 || char.ep <= 0) setFaint(char, entries);
-}
-
+// =====================
+// Romance / Social
+// =====================
 function tryConfess(a, b, entries) {
   const sp = getSpecialBetween(a, b);
   if (sp === "married" || sp === "lover") return false;
@@ -634,15 +679,17 @@ function tryConfess(a, b, entries) {
   const chance = 0.35 + Math.min(0.35, score / 200) + chemBonus;
 
   if (Math.random() < chance) {
-
     forceSingleBeforeNewLove(a, entries);
     forceSingleBeforeNewLove(b, entries);
+
     setSpecial(a, b, "lover");
     setSpecial(b, a, "lover");
     relAdd(a, b, 15, true);
     relAdd(b, a, 15, true);
+
     restoreEP(a, a.maxEp);
     restoreEP(b, b.maxEp);
+
     logPush(entries, `[고백 성공] ${a.name}${getJosa(a.name,"은/는")} ${b.name}에게 고백했고, 연인이 되었다! (EP 풀충전)`, "pink");
     return true;
   } else {
@@ -675,6 +722,7 @@ function tryMarriage(a, b, entries) {
 
   addMoney(a, -costA);
   addMoney(b, -costB);
+
   setSpecial(a, b, "married");
   setSpecial(b, a, "married");
 
@@ -716,20 +764,21 @@ function tryDate(a, b, freeEntries) {
 }
 
 function randomSocialEvent(a, b, entries, freeEntries) {
-  
   if (!canAct(a) || !canAct(b)) return;
   consumeEP(a, randInt(1, 4));
   consumeEP(b, randInt(1, 4));
 
-  if ((sp === "lover" || sp === "married") && Math.random() < 0.00001) {
-  if (sp === "married") divorce(a, b, entries);
-  else breakUp(a, b, entries);
-  return;
-}
-
+  // ✅ sp 먼저 선언 (너 코드가 여기서 터졌음)
   const sp = getSpecialBetween(a, b);
   const sA = relGet(a, b);
   const sB = relGet(b, a);
+
+  // 극저확률로 이혼/헤어짐 이벤트
+  if ((sp === "lover" || sp === "married") && Math.random() < 0.00001) {
+    if (sp === "married") divorce(a, b, entries);
+    else breakUp(a, b, entries);
+    return;
+  }
 
   const r = Math.random();
 
@@ -868,7 +917,9 @@ function doTravelOrRest(char, freeEntries) {
   }
 }
 
-
+// =====================
+// Mayor
+// =====================
 function selectMayorAtDay10(entries) {
   if (mayorSelected) return;
   if (day !== 10) return;
@@ -902,6 +953,9 @@ function selectMayorAtDay10(entries) {
   logPush(entries, `[이장] ${best.name}이(가) 이장으로 선정되었다! 👑`, "normal");
 }
 
+// =====================
+// Modal / Network / Render
+// =====================
 function relationshipLabel(score, special) {
   if (special === "married") return "💍 결혼";
   if (special === "lover") return "💖 연인";
@@ -1075,35 +1129,6 @@ function switchTab(tab, btn) {
   }
 }
 
-function normalizeCharacter(c) {
-  c.money = safeNum(c.money, 0);
-
-  c.str = safeNum(c.str, 1);
-  c.mind = safeNum(c.mind, 1);
-  c.intel = safeNum(c.intel, 1);
-  c.agi = safeNum(c.agi, 1);
-
-  c.maxHp = Math.max(1, safeNum(c.maxHp, 60 + c.str * 20));
-  c.maxEp = Math.max(1, safeNum(c.maxEp, 60 + c.mind * 20));
-
-c.hp = Math.min(c.maxHp, Math.max(0, safeNum(c.hp, 0)));
-c.ep = Math.min(c.maxEp, Math.max(0, safeNum(c.ep, 0)));
-
-
-  c.relationships = c.relationships || {};
-  c.specialRelations = c.specialRelations || {};
-
-  c.sickDays = safeNum(c.sickDays, 0);
-  c.faintDays = safeNum(c.faintDays, 0);
-  c.beggarDays = safeNum(c.beggarDays, 0);
-  c.skippedWorkDays = safeNum(c.skippedWorkDays, 0);
-
-  c.lastMain = c.lastMain || "-";
-  c.lastFree = c.lastFree || "-";
-  c.dayJoined = safeNum(c.dayJoined, 1);
-  c.isMayor = !!c.isMayor;
-}
-
 function renderVillage() {
   const view = document.getElementById("villageView");
   const dayEl = document.getElementById("dayDisplay");
@@ -1166,6 +1191,9 @@ function renderVillage() {
   });
 }
 
+// =====================
+// Save / Load / Log Save
+// =====================
 function saveData() {
   const payload = { version: 1.1, day, mayorSelected, mayorId, characters, logs };
   const str = JSON.stringify(payload);
@@ -1245,6 +1273,9 @@ function saveLogText() {
   URL.revokeObjectURL(url);
 }
 
+// =====================
+// ✅ FIXED nextDay()
+// =====================
 function nextDay() {
   const btn = document.querySelector(".btn-next");
   if (btn) { btn.disabled = true; btn.style.opacity = "0.6"; }
@@ -1255,12 +1286,12 @@ function nextDay() {
     if (characters.length === 0) { alert("최소 1명의 주민이 필요합니다."); return; }
 
     day = prevDay + 1;
-    // day 증가 이후, 본격 로직 시작 전에
-const specialCtx = applySpecialDayEvents(day, entries);
-
 
     const entries = [];
     const freeEntries = [];
+
+    // ✅ entries 만든 다음 호출해야 함
+    const specialCtx = applySpecialDayEvents(day, entries);
 
     characters.forEach(normalizeCharacter);
     maybeAssignJobs(entries);
@@ -1277,12 +1308,6 @@ const specialCtx = applySpecialDayEvents(day, entries);
     if (day <= 3) {
       actives.forEach(c => doVillagePrep(c, entries));
     } else {
-      if (specialCtx.blockWork) {
-  // 오늘은 일 못 함 -> 스킵 처리 (원하면 skippedWorkDays 올리거나 말거나)
-  c.lastMain = "휴식";
-  return;
-}
-
       const shuffled = [...actives].sort(() => Math.random() - 0.5);
 
       shuffled.forEach(c => {
@@ -1290,6 +1315,13 @@ const specialCtx = applySpecialDayEvents(day, entries);
 
         c.lastMain = "-";
         c.lastFree = "-";
+
+        // ✅ blockWork는 여기서 c를 가지고 처리
+        if (specialCtx.blockWork) {
+          c.lastMain = "휴식";
+          c.lastFree = "여가";
+          return;
+        }
 
         if (c.isMayor) {
           const hp = randInt(2, 6);
@@ -1377,42 +1409,50 @@ const specialCtx = applySpecialDayEvents(day, entries);
       const freePool = characters.filter(c => canAct(c) && c.beggarDays <= 0 && c.job !== "거지");
       if (freePool.length) {
         freeTimeDivider(freeEntries);
-        if (specialCtx.forceRestOnly) {
-  const spend = randInt(0, 20); // 가족의달엔 지출 조금만/아예 0도 가능
-  addMoney(c, -spend);
-  const gainHp = randInt(10, 25);
-  const gainEp = randInt(10, 25);
-  restoreHP(c, gainHp);
-  restoreEP(c, gainEp);
-  c.lastFree = "휴식";
-  logPush(freeEntries, `[가정의 달] ${c.name}${getJosa(c.name,"은/는")} 쉬었다. (-${spend}원, HP +${gainHp}, EP +${gainEp})`, "blue");
-  return;
-}
-
 
         const shuffledFree = [...freePool].sort(() => Math.random() - 0.5);
 
-        const datingCandidates = shuffledFree.filter(c => safeNum(c.money,0) >= 80);
-        const datePair = pickPair(datingCandidates);
-
-        if (datePair && Math.random() < 0.45) {
-          const [a, b] = datePair;
-          tryDate(a, b, freeEntries);
+        // forceRestOnly면 데이트/여행은 막고 휴식만
+        if (!specialCtx.forceRestOnly) {
+          const datingCandidates = shuffledFree.filter(c => safeNum(c.money,0) >= 80);
+          const datePair = pickPair(datingCandidates);
+          if (datePair && Math.random() < 0.45) {
+            const [a, b] = datePair;
+            tryDate(a, b, freeEntries);
+          }
         }
-   
+
         shuffledFree.forEach(c => {
           if (!canAct(c)) return;
           if (c.lastFree === "데이트") return;
+
+          if (specialCtx.forceRestOnly) {
+            const spend = randInt(0, 20);
+            const gainHp = randInt(10, 25);
+            const gainEp = randInt(10, 25);
+
+            addMoney(c, -spend);
+            restoreHP(c, gainHp);
+            restoreEP(c, gainEp);
+
+            c.lastFree = "휴식";
+            logPush(freeEntries, `[가정의 달] ${c.name}${getJosa(c.name,"은/는")} 쉬었다. (-${spend}원, HP +${gainHp}, EP +${gainEp})`, "blue");
+            return;
+          }
 
           if (Math.random() < 0.18) {
             doTravelOrRest(c, freeEntries);
           } else {
             const spend = randInt(8, 45);
+            const gainHp = randInt(8, 22) + Math.floor(spend * 0.6);
+            const gainEp = randInt(10, 26) + spend;
+
             addMoney(c, -spend);
-            restoreHP(c, randInt(8, 22) + Math.floor(spend * 0.6));
-            restoreEP(c, randInt(10, 26) + spend);
+            restoreHP(c, gainHp);
+            restoreEP(c, gainEp);
+
             c.lastFree = "여가";
-            logPush(freeEntries, `[여가] ${c.name}${getJosa(c.name,"은/는")} ${pick(WORDS.leisure)}로 기분을 풀었다. (-${spend}원)`, "blue");
+            logPush(freeEntries, `[여가] ${c.name}${getJosa(c.name,"은/는")} ${pick(WORDS.leisure)}로 기분을 풀었다. (-${spend}원, HP +${gainHp}, EP +${gainEp})`, "blue");
           }
 
           if (c.hp <= 0 || c.ep <= 0) setFaint(c, entries);
@@ -1436,14 +1476,7 @@ const specialCtx = applySpecialDayEvents(day, entries);
   }
 }
 
-
 window.onload = () => {
   ensureMbtiOptions();
   renderVillage();
 };
-
-
-
-
-
-
