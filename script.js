@@ -40,6 +40,21 @@ const compatibilityData = {
   "ISTJ": { "ESFP": 5, "ESTP": 5, "ISFJ": 4, "ESFJ": 4, "ISTJ": 4, "ESTJ": 4, "ISFP": 3, "ISTP": 3, "INFP": 1, "ENFP": 1, "INFJ": 1, "ENFJ": 1, "INTJ": 2, "ENTJ": 2, "INTP": 2, "ENTP": 2 },
   "ESTJ": { "ISFP": 5, "ISTP": 5, "INTP": 5, "ISFJ": 4, "ESFJ": 4, "ISTJ": 4, "ESTJ": 4, "ESFP": 3, "ESTP": 3, "INFP": 1, "ENFP": 1, "INFJ": 1, "ENFJ": 1, "INTJ": 2, "ENTJ": 2, "ENTP": 2 }
 };
+const GIFTS = [
+  { name: "꽃다발", type: "romantic", price: 1200 },
+  { name: "책", type: "calm", price: 1000 },
+  { name: "커피", type: "daily", price: 4000 },
+  { name: "향초", type: "calm", price: 7000 },
+  { name: "간식", type: "daily", price: 3000 },
+];
+
+const GIFT_PREF = {
+  romantic: ["INFP","ENFP","INFJ","ENFJ","ISFP"],
+  calm: ["INTJ","INTP","ISTJ","ISFJ"],
+  daily: MBTI_TYPES
+};
+
+
 
 let day = 1;
 let characters = [];
@@ -260,6 +275,34 @@ function calcChem(m1, m2) {
   return compatibilityData[m1][m2];
 }
 
+function giveGift(a, b, freeEntries) {
+  if (!canAct(a) || !canAct(b)) return false;
+  if (safeNum(a.money,0) < 30) return false;
+
+  if (Math.random() > 0.2) return false; // 자주 안 뜨게
+
+  const gift = pick(GIFTS);
+  if (a.money < gift.price) return false;
+
+  addMoney(a, -gift.price);
+
+  let boost = randInt(3, 6);
+  if (GIFT_PREF[gift.type]?.includes(b.mbti)) {
+    boost += randInt(3, 6);
+  }
+
+  relAdd(a, b, boost);
+  relAdd(b, a, Math.floor(boost/2));
+
+  a.lastFree = "선물";
+  logPush(
+    freeEntries,
+    `🎁 ${a.name}${getJosa(a.name,"은/는")} ${b.name}에게 ${gift.name}을(를) 선물했다. (+호감 ${boost})`,
+    "green"
+  );
+  return true;
+}
+
 // =====================
 // Relationship System
 // =====================
@@ -314,6 +357,37 @@ function relAdd(a, b, delta, bondedCap = false) {
   relSet(a, b, v);
 }
 
+function tryHomeVisit(a, b, freeEntries) {
+  if (!canAct(a) || !canAct(b)) return false;
+  if (a.beggarDays > 0 || b.beggarDays > 0) return false;
+
+  const sp = getSpecialBetween(a, b);
+  const sA = relGet(a, b);
+  const sB = relGet(b, a);
+
+  // 연인/결혼 OR 절친 이상
+  if (!(sp === "lover" || sp === "married" || (sA >= 70 && sB >= 70))) return false;
+
+  // 너무 자주 안 뜨게
+  if (Math.random() > 0.25) return false;
+
+  const boost = randInt(4, 8);
+  relAdd(a, b, boost, true);
+  relAdd(b, a, boost, true);
+
+  restoreEP(a, randInt(6, 14));
+  restoreEP(b, randInt(6, 14));
+
+  a.lastFree = "집 방문";
+  b.lastFree = "집 방문";
+
+  logPush(
+    freeEntries,
+    `🏠 ${a.name}${getJosa(a.name,"은/는")} ${b.name}의 집에 잠깐 들렀다. 차를 마시며 시간을 보냈다. (+호감 ${boost})`,
+    "green"
+  );
+  return true;
+}
 
 function breakSpecial(a, b, entries, reasonLabel) {
   if (!a || !b) return false;
@@ -771,8 +845,7 @@ function doWork(char, entries) {
   if (char.hp <= 0 || char.ep <= 0) setFaint(char, entries);
   return true;
 }
-turn true;
-}
+
 
 function doVillagePrep(char, entries) {
   if (!canAct(char)) return;
@@ -1008,7 +1081,10 @@ function tryDate(a, b, freeEntries) {
   addMoney(a, -costA);
   addMoney(b, -costB);
 
-  const boost = randInt(10, 18);
+  let boost = randInt(10, 18);
+
+  if (sp === "lover") boost += randInt(4, 6);
+  if (sp === "married") boost += randInt(6, 10);
   relAdd(a, b, boost, true);
   relAdd(b, a, boost, true);
 
@@ -1776,6 +1852,11 @@ function nextDay() {
         if (!specialCtx.forceRestOnly) {
           const datingCandidates = shuffledFree.filter(c => safeNum(c.money,0) >= 80);
           const datePair = pickPair(datingCandidates);
+          const homePair = pickPair(shuffledFree);
+          if (homePair) {
+            const [a, b] = homePair;
+            tryHomeVisit(a, b, freeEntries);
+          }
           if (datePair && Math.random() < 0.65) {
             const [a, b] = datePair;
             tryDate(a, b, freeEntries);
@@ -1806,6 +1887,8 @@ function nextDay() {
             const spend = randInt(8, 45);
             const gainHp = randInt(8, 22) + Math.floor(spend * 0.6);
             const gainEp = randInt(10, 26) + spend;
+            const target = pick(shuffledFree.filter(o => o.id !== c.id));
+            if (target && giveGift(c, target, freeEntries)) return;
 
             addMoney(c, -spend);
             restoreHP(c, gainHp);
@@ -1852,6 +1935,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
