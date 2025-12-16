@@ -1520,7 +1520,7 @@ function nextDay() {
         if (!specialCtx.forceRestOnly) {
           const datingCandidates = shuffledFree.filter(c => safeNum(c.money,0) >= 80);
           const datePair = pickPair(datingCandidates);
-          if (datePair && Math.random() < 0.45) {
+          if (datePair && Math.random() < 0.65) {
             const [a, b] = datePair;
             tryDate(a, b, freeEntries);
           }
@@ -1594,6 +1594,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
