@@ -578,7 +578,7 @@ function workIncome(char) {
   const maxEp = Math.max(1, safeNum(char.maxEp, 1));
   const epRatio = Math.max(0, Math.min(1, safeNum(char.ep, 0) / maxEp));
 
-  const base = 180 + tier * 30;
+  const base = 180 + tier * 40;
   const skill = (intel * 0.75 + agi * 0.35);
   const earn = Math.floor(base * skill * (0.55 + epRatio * 0.65));
   return Math.max(0, earn);
@@ -1485,4 +1485,5 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
