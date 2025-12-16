@@ -1227,8 +1227,9 @@ function renderVillage() {
       ${c.isMayor ? `<div class="mayor-crown">👑</div>` : ``}
       <div class="char-header">
         <div class="char-name">${c.name}</div>
+        <div class="char-mbti">${c.mbti}</div>
         <div class="char-job-badge">${jobLabel}${statusStr ? ` <span class="status-beggar">${statusStr}</span>` : ``}</div>
-      </div><div style="color:#777;font-size:0.9em;margin-top:2px;">${c.mbti || "-"}</div>
+      </div>
       <div class="char-money">💰 ${safeNum(c.money,0).toLocaleString()}원</div>
       <div class="stats-row">
         <div>근력 ${c.str}</div>
@@ -1550,6 +1551,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
