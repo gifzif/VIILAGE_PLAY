@@ -313,9 +313,17 @@ function renderLogs(newEntries) {
 // UI / Character
 // =====================
 function ensureMbtiOptions() {
+function ensureMbtiOptions() {
   const sel = document.getElementById("mbtiInput");
   if (!sel) return;
-  if (sel.options.length > 1) return;
+
+  
+  sel.innerHTML = "";
+
+  const ph = document.createElement("option");
+  ph.value = "";
+  ph.textContent = "MBTI 선택";
+  sel.appendChild(ph);
 
   MBTI_TYPES.forEach(t => {
     const opt = document.createElement("option");
@@ -324,7 +332,6 @@ function ensureMbtiOptions() {
     sel.appendChild(opt);
   });
 }
-
 function makeStats() {
   const str = randInt(1, 5);
   const mind = randInt(1, 5);
@@ -1491,6 +1498,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
