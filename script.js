@@ -1146,7 +1146,7 @@ function randomSocialEvent(a, b, entries, freeEntries) {
 
   relAdd(a, b, deltaBase);
   relAdd(b, a, deltaBase);
-  logPush(entries, `[대화] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 대화를 나눴다.`, "normal");
+  logPush(entries, `[대화] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 대화를 나눴다.`, "bule");
 }
 
 function pickPair(pool) {
@@ -1945,6 +1945,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
