@@ -1487,6 +1487,11 @@ window.saveLogText = saveLogText;
 window.switchTab = switchTab;
 window.closeModal = closeModal;
 window.openAffinityModal = openAffinityModal;
+document.addEventListener("DOMContentLoaded", () => {
+  ensureMbtiOptions();
+  renderVillage();
+});
+
 
 
 
