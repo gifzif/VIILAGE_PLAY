@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VILLAGE PLAY</title>
+    
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #f4f6f0;
+            --card-bg: #ffffff;
+            --accent-color: #6c5ce7;
+            --text-color: #2d3436;
+            --border-color: #e0e0e0;
+            --shadow: 0 4px 12px rgba(0,0,0,0.08);
+            
+            --hp-color: #ff7675;
+            --ep-color: #74b9ff;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        
+        button {
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Pretendard', sans-serif;
+            font-weight: 600;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+        button:active { transform: scale(0.96); }
+
+      
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 0 10px;
+        }
+        h1 { margin: 0; font-size: 1.5rem; color: #555; }
+        .file-controls { display: flex; gap: 10px; }
+        
+        .btn-save { background-color: #0984e3; color: white; padding: 10px 14px; }
+        .btn-load { background-color: #00b894; color: white; padding: 10px 14px; }
+
+       
+        .main-container {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .left-panel {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 0;
+        }
+
+      
+        .controls {
+            background: var(--card-bg);
+            padding: 15px 20px;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        input, select {
+            padding: 10px 14px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; outline: none;
+        }
+        .btn-add { background-color: var(--accent-color); color: white; padding: 10px 14px; }
+        .btn-next { background-color: #fdcb6e; color: #333; padding: 10px 14px; }
+
+        .tabs { display: flex; gap: 10px; margin-left: 5px; }
+        .tab-btn {
+            background: transparent; color: #888; border: none; font-size: 1.1em;
+            padding-bottom: 5px; border-bottom: 3px solid transparent; border-radius: 0;
+        }
+        .tab-btn.active { color: var(--text-color); border-bottom-color: var(--accent-color); font-weight: bold; }
+
+       
+        .view-area {
+            flex: 1;
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            padding: 20px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .village-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 15px;
+        }
+
+     
+        .char-card {
+            background: #fdfdfd;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px;
+            position: relative;
+            transition: transform 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+            display: flex;
+            flex-direction: column;
+        }
+        .char-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+
+        .char-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .char-name { font-weight: bold; font-size: 1.1em; }
+        .char-job-badge { font-size: 0.8em; background: #eee; padding: 3px 8px; border-radius: 10px; color: #555; }
+        .char-money { font-weight: bold; color: #e17055; text-align: right; margin-bottom: 8px; font-size: 0.95em; }
+
+        .stats-row {
+            display: flex; justify-content: space-between; font-size: 0.8em; color: #666;
+            background: #f4f6f8; padding: 6px; border-radius: 6px; margin-bottom: 8px;
+        }
+
+        .bar-group { margin-bottom: 5px; font-size: 0.8em; display: flex; align-items: center; gap: 5px; }
+        .bar-label { width: 25px; font-weight: 600; color: #888; }
+        .bar-track { flex: 1; height: 8px; background: #dfe6e9; border-radius: 4px; overflow: hidden; }
+        .bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+        .hp-fill { background-color: var(--hp-color); }
+        .ep-fill { background-color: var(--ep-color); }
+
+    
+        .btn-detail {
+            width: 100%; margin-top: 10px; padding: 8px;
+            background: #f1f2f6; color: #555; font-size: 0.9em;
+        }
+        .btn-detail:hover { background: #dfe4ea; }
+
+       
+        #networkContainer { width: 100%; height: 100%; display: none; position: relative; }
+        #networkView { width: 100%; height: 100%; }
+        .network-legend {
+            position: absolute; bottom: 10px; left: 10px;
+            background: rgba(255,255,255,0.9); padding: 8px;
+            border: 1px solid #ccc; border-radius: 8px; font-size: 0.8em;
+            pointer-events: none;
+        }
+        .legend-item { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
+        .color-box { width: 12px; height: 12px; border-radius: 3px; }
+
+     
+        .log-panel {
+            flex: 1;
+            min-width: 320px;
+            background: #2d3436;
+            color: #dfe6e9;
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow);
+        }
+        .log-header { 
+            border-bottom: 1px dashed #636e72; padding-bottom: 10px; margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .log-header span { font-weight: bold; color: #ffeaa7; }
+        .btn-txt { background-color: #636e72; color: #fff; font-size: 0.8em; padding: 6px 12px; }
+
+        .log-content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; font-size: 0.9em; line-height: 1.5; }
+        .log-entry { margin-bottom: 6px; padding: 4px 0; border-bottom: 1px solid #444; }
+        .log-day-mark { text-align: center; color: #74b9ff; font-weight: bold; margin: 15px 0 5px; border: 1px solid #74b9ff; border-radius: 20px; padding: 5px; background: rgba(116, 185, 255, 0.1); }
+
+        .status-sick { color: red; font-weight: bold; }
+        .status-beggar { background: #555; color: white; padding: 2px 5px; border-radius: 4px; font-size: 0.8em; }
+        .mayor-crown { position: absolute; top: -10px; left: -5px; font-size: 1.5em; transform: rotate(-15deg); }
+
+  
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none; justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+        .modal-window {
+            background: white; width: 300px; padding: 20px; border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            animation: popIn 0.2s ease-out;
+        }
+        @keyframes popIn { from{transform:scale(0.9); opacity:0;} to{transform:scale(1); opacity:1;} }
+        
+        .modal-title { font-size: 1.2em; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .modal-list { max-height: 300px; overflow-y: auto; }
+        .modal-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #eee; }
+        .modal-close { width: 100%; margin-top: 15px; padding: 10px; background: #2d3436; color: white; }
+        
+        .val-plus { color: #00b894; font-weight: bold; }
+        .val-minus { color: #d63031; font-weight: bold; }
+        .val-zero { color: #b2bec3; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🏡 Village PLAY</h1>
+        <div class="file-controls">
+            <button class="btn-save" onclick="saveData()">💾 저장</button>
+            <button class="btn-load" onclick="document.getElementById('fileInput').click()">📂 불러오기</button>
+            <input type="file" id="fileInput" style="display: none;" onchange="loadData(this)">
+        </div>
+    </header>
+
+    <div class="main-container">
+       
+        <div class="left-panel">
+            <div class="controls">
+                <input type="text" id="nameInput" placeholder="이름" style="width: 100px;">
+                <select id="mbtiInput"></select>
+                <button class="btn-add" onclick="addCharacter()">입주</button>
+                <div style="width: 1px; height: 30px; background: #ddd; margin: 0 10px;"></div>
+                <button class="btn-next" onclick="nextDay()"> 다음 날 (<span id="dayDisplay">1</span>일차)</button>
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('village', this)">주민 카드</button>
+                    <button class="tab-btn" onclick="switchTab('network', this)">관계도</button>
+                </div>
+            </div>
+
+            <div class="view-area">
+                <div id="villageView" class="village-grid"></div>
+                <div id="networkContainer">
+                    <div id="networkView"></div>
+                    <div class="network-legend">
+                        <div class="legend-item"><div class="color-box" style="background:#636e72;"></div>나쁨 (음수)</div>
+                        <div class="legend-item"><div class="color-box" style="background:#b2bec3;"></div>보통 (0~30)</div>
+                        <div class="legend-item"><div class="color-box" style="background:#00b894;"></div>좋음 (31~60)</div>
+                        <div class="legend-item"><div class="color-box" style="background:#0984e3;"></div>매우 좋음 (61~)</div>
+                        <div class="legend-item"><div class="color-box" style="background:#ff7675;"></div>연인/결혼</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 오른쪽 로그 -->
+        <div class="log-panel">
+            <div class="log-header">
+                <span>📜 로그</span>
+                <button class="btn-txt" onclick="saveLogText()">📝 txt 저장</button>
+            </div>
+            <div id="logContent" class="log-content">
+                <div class="log-entry">마을 시뮬레이션이 시작되었습니다.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모달 창 (숨겨져 있음) -->
+    <div id="affinityModal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-window">
+            <div class="modal-title" id="modalTitle">관계 상세</div>
+            <div class="modal-list" id="modalList">
+                <!-- 리스트가 여기 들어감 -->
+            </div>
+            <button class="modal-close" onclick="document.getElementById('affinityModal').style.display='none'">닫기</button>
+        </div>
+    </div>
+
+<script src="script.js"></script>
+</body>
+</html>
