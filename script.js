@@ -714,11 +714,17 @@ function renderVillage() {
   }
 
   characters.forEach(c => {
-    c.money = safeNum(c.money, 0);
-    c.hp = safeNum(c.hp, 0);
-    c.ep = safeNum(c.ep, 0);
+    c.money = safeNum(c.money, 100);
+
     c.maxHp = Math.max(1, safeNum(c.maxHp, 100));
     c.maxEp = Math.max(1, safeNum(c.maxEp, 100));
+
+    c.hp = Math.min(c.maxHp, Math.max(0, safeNum(c.hp, c.maxHp)));
+    c.ep = Math.min(c.maxEp, Math.max(0, safeNum(c.ep, c.maxEp)));
+
+    c.skippedWorkDays = safeNum(c.skippedWorkDays, 0);
+    c.lastMain = "-";
+    c.lastFree = "-";
 
     const hpPct = Math.max(0, Math.min(100, Math.floor((c.hp / c.maxHp) * 100)));
     const epPct = Math.max(0, Math.min(100, Math.floor((c.ep / c.maxEp) * 100)));
@@ -1224,3 +1230,4 @@ window.onload = () => {
   ensureMbtiOptions();
   renderVillage();
 };
+
