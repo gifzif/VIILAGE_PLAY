@@ -448,6 +448,7 @@ function logKindColor(kind) {
   if (kind === "green") return "#00b894";
   if (kind === "pink")  return "#ff7675";
   if (kind === "danger") return "#d63031";
+  if (kind === "divider") return "#636e72";
   return "#b2bec3"; 
 }
 
@@ -654,7 +655,7 @@ function canAct(char) {
 }
 
 function freeTimeDivider(entries) {
-  logPush(entries, "— 자유시간 —", "blue");
+  logPush(entries, "————— 자유시간 —————","divider");
 }
 
 function setFaint(char, entries) {
@@ -1936,6 +1937,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
