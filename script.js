@@ -1059,37 +1059,34 @@ function buildNetworkData() {
 function highlightPersonInNetwork(personId) {
   if (!network || !networkNodes || !networkEdges) return;
 
-
   personId = String(personId);
 
+  // 같은 사람 다시 클릭 → 전체 복구
   if (highlightedPersonId === personId) {
     clearNetworkHighlight();
     return;
   }
   highlightedPersonId = personId;
 
-  const neighbors = new Set(network.getConnectedNodes(personId).map(String));
+  const neighbors = new Set(
+    network.getConnectedNodes(personId).map(String)
+  );
 
-  const nodeUpdates = networkNodes.get().map(n => {
+  // ✅ 노드: 본인 + 이웃만 보이게
+  networkNodes.forEach(n => {
     const nid = String(n.id);
-    const keep = (nid === personId) || neighbors.has(nid);
-
-    if (keep) {
-      const isMayor = characters.find(c => String(c.id) === nid)?.isMayor;
-      const bg = isMayor ? "#fdcb6e" : "#dfe6e9";
-      return {
-        id: n.id,
-        color: { background: bg, border: "#636e72" },
-        font: { color: "#2d3436", face: "Pretendard" }
-      };
-    } else {
-      return {
-        id: n.id,
-        color: { background: "#2f2f2f", border: "#111" },
-        font: { color: "#777", face: "Pretendard" }
-      };
-    }
+    const visible = (nid === personId) || neighbors.has(nid);
+    networkNodes.update({ id: n.id, hidden: !visible });
   });
+
+  // ✅ 엣지: 본인과 연결된 것만 보이게
+  networkEdges.forEach(e => {
+    const visible =
+      String(e.from) === personId || String(e.to) === personId;
+    networkEdges.update({ id: e.id, hidden: !visible });
+  });
+}
+
   networkNodes.update(nodeUpdates);
 
   const edgeUpdates = networkEdges.get().map(e => {
@@ -1156,13 +1153,15 @@ function clearNetworkHighlight() {
   if (!network || !networkNodes || !networkEdges) return;
   highlightedPersonId = null;
 
-  // buildNetworkData() 기준으로 “원래 상태” 통째로 재구성하는 게 제일 안전함
-  const data = buildNetworkData();
-  networkNodes.clear();
-  networkEdges.clear();
-  networkNodes.add(data.nodes);
-  networkEdges.add(data.edges);
+  networkNodes.forEach(n => {
+    networkNodes.update({ id: n.id, hidden: false });
+  });
+
+  networkEdges.forEach(e => {
+    networkEdges.update({ id: e.id, hidden: false });
+  });
 }
+
 
 function renderNetwork() {
   const container = document.getElementById("networkView");
@@ -1585,6 +1584,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
