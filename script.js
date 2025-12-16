@@ -447,6 +447,7 @@ function logKindColor(kind) {
   if (kind === "blue")  return "#74b9ff";
   if (kind === "green") return "#00b894";
   if (kind === "pink")  return "#ff7675";
+  if (kind === "danger") return "#d63031";
   return "#b2bec3"; 
 }
 
@@ -906,7 +907,7 @@ function skipWorkLazy(char, entries) {
     `[땡땡이] ${char.name}: "오늘은… 쉬자." 출근을 포기했다. (HP +${gainHp}, EP +${gainEp})`,
     `[땡땡이] ${char.name}${getJosa(char.name,"은/는")} 이불의 승리로 결근했다. (HP +${gainHp}, EP +${gainEp})`,
   ];
-  logPush(entries, pick(lines), "blue"); // 너 로그 시스템에 맞춰서 blue 추천
+  logPush(entries, pick(lines), "danger"); // 너 로그 시스템에 맞춰서 blue 추천
 
   return true;
 }
@@ -1935,6 +1936,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
