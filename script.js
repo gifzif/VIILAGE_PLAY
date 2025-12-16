@@ -315,7 +315,8 @@ function renderLogs(newEntries) {
 function ensureMbtiOptions() {
   const sel = document.getElementById("mbtiInput");
   if (!sel) return;
-  if (sel.options.length) return;
+  if (sel.options.length > 1) return;
+
   MBTI_TYPES.forEach(t => {
     const opt = document.createElement("option");
     opt.value = t;
@@ -1486,5 +1487,6 @@ window.saveLogText = saveLogText;
 window.switchTab = switchTab;
 window.closeModal = closeModal;
 window.openAffinityModal = openAffinityModal;
+
 
 
