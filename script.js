@@ -45,6 +45,95 @@ let network = null;
 let mayorSelected = false;
 let mayorId = null;
 
+const YEAR_DAYS = 365;
+
+// 1일차 -> 1, 365일차 -> 365, 366일차 -> 1 ...
+function getDayOfYear(simDay) {
+  return ((safeNum(simDay, 1) - 1) % YEAR_DAYS) + 1;
+}
+
+// (원하면 보기 좋게 월/일 문자열도)
+function dayOfYearToMonthDay(doy) {
+  const monthDays = [31,28,31,30,31,30,31,31,30,31,30,31];
+  let m = 1, d = doy;
+  for (const md of monthDays) {
+    if (d > md) { d -= md; m++; }
+    else break;
+  }
+  return `${m}월 ${d}일`;
+}
+
+function applySpecialDayEvents(day, entries) {
+  const doy = getDayOfYear(day);
+
+  // nextDay 로직에 “오늘은 돈 못 번다” 같은 플래그 전달용
+  const ctx = {
+    blockWork: false,        // true면 오늘 돈벌기 금지
+    forceRestOnly: false,    // true면 오늘은 전원 휴식/여가만
+  };
+
+  // ====== (1) 크리스마스: 12/25 = dayOfYear 359 (윤년 제외 기준)
+  if (doy === 359) {
+    logPush(entries, `🎄 [크리스마스] 오늘은 ${dayOfYearToMonthDay(doy)}!`, "pink");
+
+    characters.forEach(c => {
+      if (!canAct(c)) return;
+
+      const partnerId = getAnyPartnerId(c);
+      if (partnerId) {
+        // 연인/결혼이면 EP 풀충
+        restoreEP(c, c.maxEp);
+        logPush(entries, `🎁 ${c.name}${getJosa(c.name,"은/는")} 연인이 있어서 EP가 풀충전됐다!`, "pink");
+      } else {
+        // 솔로면 EP 반타작 (정신력 “반타작”)
+        c.ep = Math.floor(safeNum(c.ep, 0) * 0.5);
+        logPush(entries, `🥲 ${c.name}${getJosa(c.name,"은/는")} 솔로라서 EP가 반으로 줄었다...`, "normal");
+      }
+    });
+  }
+
+  // ====== (2) 부활절(예시): 날짜는 네가 정하면 됨.
+  // 일단 "100번째 날"로 예시 (원하면 다른 숫자로 바꿔)
+  if (doy === 100) {
+    logPush(entries, `🐣 [부활절] 달걀 찾기 이벤트!`, "green");
+
+    // 각자 달걀 발견량 랜덤
+    const found = characters.map(c => {
+      if (!canAct(c)) return { id: c.id, name: c.name, n: 0 };
+      // 발견량: 0~5개 (원하면 바꿔)
+      return { id: c.id, name: c.name, n: randInt(0, 5) };
+    });
+
+    const maxFound = Math.max(...found.map(x => x.n));
+    const winners = found.filter(x => x.n === maxFound && maxFound > 0).map(x => x.id);
+
+    if (winners.length === 0) {
+      logPush(entries, `🥚 아무도 달걀을 못 찾았다…`, "normal");
+    } else {
+      // 우승자 +1000, 나머지 -1000
+      characters.forEach(c => {
+        if (!canAct(c)) return;
+        if (winners.includes(c.id)) addMoney(c, +1000);
+        else addMoney(c, -1000);
+      });
+
+      const winnerNames = winners.map(id => characters.find(c => c.id === id)?.name).filter(Boolean);
+      logPush(entries, `🏆 우승: ${winnerNames.join(", ")} (+1000원) / 나머지 (-1000원)`, "green");
+      logPush(entries, `📊 최고 발견량: ${maxFound}개`, "green");
+    }
+  }
+
+  // ====== (3) 5월 5일(가정의 달) = dayOfYear 125
+  if (doy === 125) {
+    logPush(entries, `👨‍👩‍👧 [가정의 달] 오늘은 ${dayOfYearToMonthDay(doy)}. 돈벌이를 못 한다! 전원 휴식!`, "blue");
+    ctx.blockWork = true;
+    ctx.forceRestOnly = true;
+  }
+
+  return ctx;
+}
+
+
 function safeNum(v, fallback = 0) {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
@@ -87,6 +176,58 @@ function calcChem(m1, m2) {
   return compatibilityData[m1][m2];
 }
 
+function breakSpecial(a, b, entries, reasonLabel) {
+  if (!a || !b) return false;
+
+  const sp = getSpecialBetween(a, b);
+  if (sp !== "lover" && sp !== "married") return false;
+
+  // 관계 해제
+  setSpecial(a, b, null);
+  setSpecial(b, a, null);
+
+  // 후폭풍(원하면 수치 조절)
+  relAdd(a, b, -25);
+  relAdd(b, a, -25);
+
+  // 비용/소모(원하면 조절)
+  const costA = randInt(40, 120);
+  const costB = randInt(40, 120);
+  addMoney(a, -costA);
+  addMoney(b, -costB);
+
+  logPush(entries, `[${reasonLabel}] ${a.name}${getJosa(a.name,"와/과")} ${b.name}${getJosa(b.name,"은/는")} 관계를 정리했다. (-${costA}원/-${costB}원)`, "normal");
+  return true;
+}
+
+function breakUp(a, b, entries) {
+  return breakSpecial(a, b, entries, "헤어짐");
+}
+
+function divorce(a, b, entries) {
+  return breakSpecial(a, b, entries, "이혼");
+}
+
+function forceSingleBeforeNewLove(a, entries) {
+  const marriedId = getPartnerId(a, "married");
+  if (marriedId) {
+    const old = characters.find(x => x.id === marriedId);
+    if (old) divorce(a, old, entries);
+    return true;
+  }
+
+  const loverId = getPartnerId(a, "lover");
+  if (loverId) {
+    const old = characters.find(x => x.id === loverId);
+    if (old) breakUp(a, old, entries);
+    return true;
+  }
+
+  return false;
+}
+
+
+
 function getSpecialBetween(a, b) {
   const s1 = a?.specialRelations?.[b?.id];
   const s2 = b?.specialRelations?.[a?.id];
@@ -96,6 +237,19 @@ function getSpecialBetween(a, b) {
   if (s1 === "cut" || s2 === "cut") return "cut";
   return null;
 }
+
+function getPartnerId(char, status /* "lover"|"married" */) {
+  const rel = char?.specialRelations || {};
+  for (const [id, st] of Object.entries(rel)) {
+    if (st === status) return id;
+  }
+  return null;
+}
+
+function getAnyPartnerId(char) {
+  return getPartnerId(char, "married") || getPartnerId(char, "lover");
+}
+
 
 function setSpecial(a, b, status) {
   if (!a.specialRelations) a.specialRelations = {};
@@ -480,6 +634,9 @@ function tryConfess(a, b, entries) {
   const chance = 0.35 + Math.min(0.35, score / 200) + chemBonus;
 
   if (Math.random() < chance) {
+
+    forceSingleBeforeNewLove(a, entries);
+    forceSingleBeforeNewLove(b, entries);
     setSpecial(a, b, "lover");
     setSpecial(b, a, "lover");
     relAdd(a, b, 15, true);
@@ -518,7 +675,6 @@ function tryMarriage(a, b, entries) {
 
   addMoney(a, -costA);
   addMoney(b, -costB);
-
   setSpecial(a, b, "married");
   setSpecial(b, a, "married");
 
@@ -565,6 +721,11 @@ function randomSocialEvent(a, b, entries, freeEntries) {
   consumeEP(a, randInt(1, 4));
   consumeEP(b, randInt(1, 4));
 
+  if ((sp === "lover" || sp === "married") && Math.random() < 0.00001) {
+  if (sp === "married") divorce(a, b, entries);
+  else breakUp(a, b, entries);
+  return;
+}
 
   const sp = getSpecialBetween(a, b);
   const sA = relGet(a, b);
@@ -1094,6 +1255,9 @@ function nextDay() {
     if (characters.length === 0) { alert("최소 1명의 주민이 필요합니다."); return; }
 
     day = prevDay + 1;
+    // day 증가 이후, 본격 로직 시작 전에
+const specialCtx = applySpecialDayEvents(day, entries);
+
 
     const entries = [];
     const freeEntries = [];
@@ -1113,6 +1277,12 @@ function nextDay() {
     if (day <= 3) {
       actives.forEach(c => doVillagePrep(c, entries));
     } else {
+      if (specialCtx.blockWork) {
+  // 오늘은 일 못 함 -> 스킵 처리 (원하면 skippedWorkDays 올리거나 말거나)
+  c.lastMain = "휴식";
+  return;
+}
+
       const shuffled = [...actives].sort(() => Math.random() - 0.5);
 
       shuffled.forEach(c => {
@@ -1207,6 +1377,18 @@ function nextDay() {
       const freePool = characters.filter(c => canAct(c) && c.beggarDays <= 0 && c.job !== "거지");
       if (freePool.length) {
         freeTimeDivider(freeEntries);
+        if (specialCtx.forceRestOnly) {
+  const spend = randInt(0, 20); // 가족의달엔 지출 조금만/아예 0도 가능
+  addMoney(c, -spend);
+  const gainHp = randInt(10, 25);
+  const gainEp = randInt(10, 25);
+  restoreHP(c, gainHp);
+  restoreEP(c, gainEp);
+  c.lastFree = "휴식";
+  logPush(freeEntries, `[가정의 달] ${c.name}${getJosa(c.name,"은/는")} 쉬었다. (-${spend}원, HP +${gainHp}, EP +${gainEp})`, "blue");
+  return;
+}
+
 
         const shuffledFree = [...freePool].sort(() => Math.random() - 0.5);
 
@@ -1217,7 +1399,7 @@ function nextDay() {
           const [a, b] = datePair;
           tryDate(a, b, freeEntries);
         }
-
+   
         shuffledFree.forEach(c => {
           if (!canAct(c)) return;
           if (c.lastFree === "데이트") return;
@@ -1259,6 +1441,7 @@ window.onload = () => {
   ensureMbtiOptions();
   renderVillage();
 };
+
 
 
 
