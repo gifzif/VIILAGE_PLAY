@@ -1583,7 +1583,7 @@ function nextDay() {
 
       const freePool = characters.filter(c => canAct(c) && c.beggarDays <= 0 && c.job !== "거지");
       if (freePool.length) {
-        freeTimeDivider(freeEntries);
+        freeTimeDivider(entries);
 
         const shuffledFree = [...freePool].sort(() => Math.random() - 0.5);
 
@@ -1666,6 +1666,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
