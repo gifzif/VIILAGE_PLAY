@@ -986,8 +986,8 @@ function tryConfess(a, b, entries) {
     (chem - 3) * 0.06;
 
 
-  if (aHasPartner) chance *= 0.15;   // 85% 감소
-  if (bHasPartner) chance *= 0.15;   // 상대가 연애 중이면 거의 안 됨
+  if (aHasPartner) chance *= 0.05;   // 85% 감소
+  if (bHasPartner) chance *= 0.05;   // 상대가 연애 중이면 거의 안 됨
 
 
   chance = Math.max(0.03, chance);
@@ -1945,6 +1945,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
