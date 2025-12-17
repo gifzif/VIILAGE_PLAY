@@ -115,7 +115,7 @@ function applySpecialDayEvents(simDay, entries) {
     });
   }
 
-  // 부활절(예시): 100번째 날
+
   if (doy === 100) {
     logPush(entries, `🐣 [부활절] 달걀 찾기 이벤트!`, "green");
 
@@ -142,7 +142,7 @@ function applySpecialDayEvents(simDay, entries) {
     }
   }
 
-  // 5/5 = 125
+
   if (doy === 125) {
     logPush(entries, `👨‍👩‍👧 [가정의 달] 오늘은 ${dayOfYearToMonthDay(doy)}. 돈벌이를 못 한다! 전원 휴식!`, "blue");
     ctx.blockWork = true;
@@ -190,16 +190,16 @@ function chance(p) {
   return Math.random() < p;
 }
 function helpSick(a, b, entries) {
-  if (!canAct(a)) return false;          // a가 행동 가능해야 챙겨줌
-  if (b.sickDays <= 0) return false;     // b가 아플 때만
+  if (!canAct(a)) return false;        
+  if (b.sickDays <= 0) return false;    
   if (a.beggarDays > 0 || b.beggarDays > 0) return false;
 
-  if (relGet(a, b) < 20) return false;   // 호감도 조건
+  if (relGet(a, b) < 20) return false;
 
   const cost = randInt(10, 30);
   addMoney(a, -cost);
 
-  // 아픈 기간 1일 줄여주고, EP도 조금 회복
+  
   b.sickDays = Math.max(0, b.sickDays - 1);
   const healEp = randInt(6, 14);
   restoreEP(b, healEp);
@@ -215,15 +215,15 @@ function careLowEP(a, b, entries) {
   if (!canAct(a) || !canAct(b)) return false;
   if (a.beggarDays > 0 || b.beggarDays > 0) return false;
 
-  // b의 EP가 낮을 때만 발동
+ 
   const maxEp = Math.max(1, safeNum(b.maxEp, 1));
   const ratio = safeNum(b.ep, 0) / maxEp;
-  if (ratio > 0.25) return false; // 25% 이하일 때만
+  if (ratio > 0.25) return false; 
 
-  // 호감도 조건 (원하는 기준으로 조절)
+  
   if (relGet(a, b) < 18) return false;
 
-  // 챙겨주기 비용/효과
+  
   const cost = randInt(5, 25);
   addMoney(a, -cost);
 
@@ -279,7 +279,7 @@ function giveGift(a, b, freeEntries) {
   if (!canAct(a) || !canAct(b)) return false;
   if (safeNum(a.money,0) < 30) return false;
 
-  if (Math.random() > 0.2) return false; // 자주 안 뜨게
+  if (Math.random() > 0.2) return false; 
 
   const gift = pick(GIFTS);
   if (a.money < gift.price) return false;
@@ -365,10 +365,10 @@ function tryHomeVisit(a, b, freeEntries) {
   const sA = relGet(a, b);
   const sB = relGet(b, a);
 
-  // 연인/결혼 OR 절친 이상
+  
   if (!(sp === "lover" || sp === "married" || (sA >= 70 && sB >= 70))) return false;
 
-  // 너무 자주 안 뜨게
+
   if (Math.random() > 0.25) return false;
 
   const boost = randInt(4, 8);
@@ -456,7 +456,7 @@ function logKindColor(kind) {
 
 function saveLayout() {
   if (!network) return;
-  network.storePositions(); // DataSet에 x,y가 들어감
+  network.storePositions(); 
 
   const pos = {};
   networkNodes.forEach(n => { pos[n.id] = { x: n.x, y: n.y }; });
@@ -502,7 +502,7 @@ function renderLogs(newEntries) {
     if (e.kind === "divider") {
       div.style.justifyContent = "center";
       div.style.gap = "0";
-      marker.style.display = "none"; // 구분선엔 마커 제거
+      marker.style.display = "none";
       text.style.color = "#b2bec3";
       text.style.letterSpacing = "1px";
     }
@@ -869,14 +869,14 @@ function doVillagePrep(char, entries) {
   if (char.hp <= 0 || char.ep <= 0) setFaint(char, entries);
 }
 function jobAttendanceBias(job) {
-  // +면 출근 잘함, -면 땡땡이 느낌
+ 
   if (job === "의사") return +0.18;
   if (job === "간호사") return +0.12;
   if (job === "경찰") return +0.10;
   if (job === "교사") return +0.08;
   if (job === "사무직") return +0.05;
 
-  if (job === "개발자") return -0.02;   // “재택/유연” 느낌
+  if (job === "개발자") return -0.02; 
   if (job === "디자이너") return -0.03;
   if (job === "바리스타") return -0.04;
   if (job === "요가강사") return -0.05;
@@ -900,7 +900,6 @@ function skipWorkLazy(char, entries) {
   if (!char || !canAct(char)) return false;
   if (!char.job || char.job === "거지") return false;
 
-  // 결근하면 돈 못 벌고, 대신 체력/기분은 약간 회복되는 느낌
   const gainHp = randInt(2, 7);
   const gainEp = randInt(4, 10);
 
@@ -916,7 +915,7 @@ function skipWorkLazy(char, entries) {
     `[땡땡이] ${char.name}: "오늘은… 쉬자." 출근을 포기했다. (HP +${gainHp}, EP +${gainEp})`,
     `[땡땡이] ${char.name}${getJosa(char.name,"은/는")} 이불의 승리로 결근했다. (HP +${gainHp}, EP +${gainEp})`,
   ];
-  logPush(entries, pick(lines), "danger"); // 너 로그 시스템에 맞춰서 blue 추천
+  logPush(entries, pick(lines), "danger");
 
   return true;
 }
@@ -974,8 +973,6 @@ function tryConfess(a, b, entries) {
   const chem = calcChem(a.mbti, b.mbti);
   if (score < 55) return false;
 
-  // ===== 여기부터 핵심 =====
-
   const aHasPartner = !!getAnyPartnerId(a);
   const bHasPartner = !!getAnyPartnerId(b);
 
@@ -986,8 +983,8 @@ function tryConfess(a, b, entries) {
     (chem - 3) * 0.06;
 
 
-  if (aHasPartner) chance *= 0.05;   // 85% 감소
-  if (bHasPartner) chance *= 0.05;   // 상대가 연애 중이면 거의 안 됨
+  if (aHasPartner) chance *= 0.05;
+  if (bHasPartner) chance *= 0.05;  
 
 
   chance = Math.max(0.03, chance);
@@ -1014,11 +1011,11 @@ function tryConfess(a, b, entries) {
     return true;
   }
 
-  // ===== 실패 처리 =====
+  
   relAdd(a, b, -6);
   relAdd(b, a, -2);
 
-  // 연애 중 실패는 "민망/거리감" 정도만
+ 
   if (aHasPartner || bHasPartner) {
     if (Math.random() < 0.4) {
       setSpecial(a, b, "coldwar");
@@ -1031,7 +1028,7 @@ function tryConfess(a, b, entries) {
     } else {
       logPush(
         entries,
-        `[고백 실패] 😅 ${a.name}의 고백은 조용히 묻혔다.`,
+        `[고백 실패] 😅 ${b.name}에게 마음이 있던 ${a.name}의 고백은, 마음속에 조용히 묻혔다.`,
         "normal"
       );
     }
@@ -1120,7 +1117,7 @@ function randomSocialEvent(a, b, entries, freeEntries) {
   const sA = relGet(a, b);
   const sB = relGet(b, a);
 
-  // 극희박 파국 이벤트
+  
   if ((sp === "lover" || sp === "married") && Math.random() < 0.00001) {
     if (sp === "married") divorce(a, b, entries);
     else breakUp(a, b, entries);
@@ -1402,18 +1399,18 @@ function applyRadialLayoutToAll(nodes, radius = 320) {
   const n = nodes.length;
   if (n === 0) return nodes;
 
-  // 가운데 비우고 "전원 방사형"이면: 모두 같은 원 위에 배치
+
   const angleStep = (Math.PI * 2) / n;
 
   return nodes.map((node, i) => {
-    const a = i * angleStep - Math.PI / 2; // 12시 방향부터 시작
+    const a = i * angleStep - Math.PI / 2;
     const x = Math.round(Math.cos(a) * radius);
     const y = Math.round(Math.sin(a) * radius);
 
     return {
       ...node,
       x, y,
-      fixed: true  // ✅ 고정
+      fixed: true 
     };
   });
 }
@@ -1421,14 +1418,14 @@ function highlightPersonInNetwork(personId) {
   if (!networkNodes || !networkEdges) return;
   highlightedPersonId = personId;
 
-  // 연결된 이웃 노드 모으기
+
   const connected = new Set([personId]);
   networkEdges.forEach(e => {
     if (e.from === personId) connected.add(e.to);
     if (e.to === personId) connected.add(e.from);
   });
 
-  // 노드 흑백 처리
+ 
   const nodeUpdates = [];
   networkNodes.forEach(n => {
     const isOn = connected.has(n.id);
@@ -1436,7 +1433,7 @@ function highlightPersonInNetwork(personId) {
 
     nodeUpdates.push({
       id: n.id,
-      // 연결된 노드만 원래색(또는 강조색), 나머지 회색
+      
       color: {
         background: isOn ? (isCenter ? "#ffeaa7" : "#dfe6e9") : "#2d3436",
         border: isOn ? "#636e72" : "#111"
@@ -1450,7 +1447,6 @@ function highlightPersonInNetwork(personId) {
   });
   networkNodes.update(nodeUpdates);
 
-  // 엣지 흑백 처리 (선도 연결된 것만 살림)
   const edgeUpdates = [];
   networkEdges.forEach(e => {
     const isOn = (e.from === personId || e.to === personId);
@@ -1463,7 +1459,7 @@ function highlightPersonInNetwork(personId) {
   });
   networkEdges.update(edgeUpdates);
 
-  // 카메라 이동(선택) – 선택한 사람으로 살짝 이동
+ 
   try {
     network.focus(personId, { scale: 1.1, animation: { duration: 250 } });
   } catch (e) {}
@@ -1473,10 +1469,10 @@ function clearNetworkHighlight() {
   if (!networkNodes || !networkEdges) return;
   highlightedPersonId = null;
 
-  // 노드 원복
+ 
   const nodeUpdates = [];
   networkNodes.forEach(n => {
-    // 이장 색 다시 반영하려면 characters에서 확인
+   
     const c = characters.find(x => x.id === n.id);
     const bg = c?.isMayor ? "#fdcb6e" : "#dfe6e9";
 
@@ -1489,7 +1485,7 @@ function clearNetworkHighlight() {
   });
   networkNodes.update(nodeUpdates);
 
-  // 엣지 원복 (buildNetworkData에서 만든 색/두께는 e.color/e.width에 이미 들어있음)
+ 
   const edgeUpdates = [];
   networkEdges.forEach(e => {
     edgeUpdates.push({
@@ -1514,7 +1510,7 @@ function renderNetwork() {
   const saved = JSON.parse(localStorage.getItem("vp_layout") || "null");
 
   if (saved) {
-    // ✅ 저장된 좌표 우선
+  
     data.nodes = data.nodes.map(n => ({
       ...n,
       x: saved[n.id]?.x ?? n.x,
@@ -1522,7 +1518,7 @@ function renderNetwork() {
       fixed: true
     }));
   } else {
-    // ✅ 저장 없으면 "방사형 고정 배치"로 시작
+   
     data.nodes = applyRadialLayoutToAll(data.nodes, 320);
   }
 
@@ -1530,15 +1526,15 @@ function renderNetwork() {
   networkEdges = new vis.DataSet(data.edges);
 
   const options = {
-    physics: false, // ✅ 무조건 끔 (고정이 목적)
+    physics: false,
     interaction: {
       hover: true,
-      dragNodes: false, // ✅ 노드 못 움직이게
+      dragNodes: false,
       dragView: true,
       zoomView: true
     },
     edges: {
-      smooth: { type: "continuous" } // 선을 좀 더 깔끔하게
+      smooth: { type: "continuous" } 
     }
   };
 
@@ -1858,7 +1854,7 @@ function nextDay() {
 
         const shuffledFree = [...freePool].sort(() => Math.random() - 0.5);
 
-        // forceRestOnly면 데이트/여행은 막고 휴식만
+       
         if (!specialCtx.forceRestOnly) {
           const datingCandidates = shuffledFree.filter(c => safeNum(c.money,0) >= 80);
           const datePair = pickPair(datingCandidates);
@@ -1945,6 +1941,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureMbtiOptions();
   renderVillage();
 });
+
 
 
 
